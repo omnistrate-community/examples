@@ -1,9 +1,9 @@
 version: '3.9'
 x-omnistrate-service-plan:
   tenancyType: 'OMNISTRATE_MULTI_TENANCY'
-x-omnistrate-integrations:
-  - omnistrateLogging
-  - omnistrateMetrics
+x-customer-integrations:
+  logs:
+  metrics:
 services:
   postgres:
     image: postgres

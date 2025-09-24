@@ -1,7 +1,7 @@
 version: "3"
-x-omnistrate-integrations:
-  - omnistrateLogging
-  - omnistrateMetrics:
+x-customer-integrations:
+  logs:
+  metrics:
       additionalMetrics:
         postgres:
           prometheusEndpoint: "http://localhost:9187/metrics"

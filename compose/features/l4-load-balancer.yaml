@@ -1,7 +1,7 @@
 version: '3.9'
-x-omnistrate-integrations:
-  - omnistrateLogging
-  - omnistrateMetrics
+x-customer-integrations:
+  logs:
+  metrics:
 x-omnistrate-load-balancer:
   tcp:
     - name: postgres-lb
