@@ -1,9 +1,3 @@
----
-tags:
-  - example
-  - overview
----
-
 # Examples
 
 This section contains practical examples demonstrating how to build various types of SaaS applications using Omnistrate. Each example provides step-by-step guidance, complete configuration files, and best practices for different use cases.

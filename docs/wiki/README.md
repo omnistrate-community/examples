@@ -1,11 +1,3 @@
----
-tags:
-  - example
-  - wiki
-  - saas
----
-
-<!-- TODO: MOVE TO GITHUB REPO -->
 # Outline Wiki SaaS example
 
 This example shows how to deploy an Outline Wiki SaaS in your account, it's an open-source alternative for software like Confluence, check the project [on GitHub](https://github.com/outline/outline).
