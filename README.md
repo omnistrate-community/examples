@@ -42,9 +42,5 @@ This is a community-driven repository. Contributions are welcome! Please feel fr
 ## Resources
 
 - [Omnistrate Documentation](https://docs.omnistrate.com)
-- [Omnistrate Platform](https://omnistrate.com)
-- [Community Support](https://github.com/omnistrate-community/examples/issues)
+- [Omnistrate Platform](https://omnistrate.com)=
 
-## License
-
-This project is licensed under the terms specified in the [LICENSE](LICENSE) file.
