@@ -8,15 +8,15 @@ This repository contains comprehensive examples and documentation for building S
 
 Contains Docker Compose and YAML configuration files for various services that can be deployed on Omnistrate:
 
-**services**
-**features**
+- **Service Examples:** Examples of popular services implemented using Docker Compose
+- **Configuration Features:**: Examples of how to enable and configure key features
 
 ### 📁 `spec/`
 
 Contains Docker Compose and YAML configuration files for various services that can be deployed on Omnistrate:
 
-**services**
-**features**
+- **Service Examples:** Examples of popular services implemented using Helm Charts, Operators, Terraform and Kustomize
+- **Configuration Features:**: Examples of how to enable and configure key features on plan specification
 
 ### 📁 `docs/`
 

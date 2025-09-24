@@ -1,10 +1,10 @@
 name: Redis Server # Service Plan Name
 deployment:
   x-omnistrate-byoa: # Customer-Account
-    AwsAccountId: '339713121445'
-    AwsBootstrapRoleAccountArn: 'arn:aws:iam::339713121445:role/omnistrate-bootstrap-role'
-    AzureSubscriptionId: '0fa05079-dd73-4b88-babc-05537817604a'
-    AzureTenantId: '4e6c839d-e141-462e-bc65-8cd863580351'
+    AwsAccountId: 'xxxxxxxxxx'
+    AwsBootstrapRoleAccountArn: 'arn:aws:iam::xxxxxxxxxx:role/omnistrate-bootstrap-role'
+    AzureSubscriptionId: 'xxxxxxxxxx'
+    AzureTenantId: 'xxxxxxxxxx'
 features:
   INTERNAL:
     logs: # Omnistrate native
@@ -37,10 +37,17 @@ services:
         disableMonitoring: false
     helmChartConfiguration:
       chartName: redis
-      chartVersion: 19.6.2
-      chartRepoName: bitnami
+      chartVersion: 22.0.7
+      chartRepoName: bitnamicharts
       chartRepoURL: oci://registry-1.docker.io/bitnamicharts
       chartValues:
+        global:
+          security: 
+            allowInsecureImages: true
+        image:
+          registry: docker.io
+          repository: bitnamisecure/redis
+          tag: latest
         master:
           podLabels:
             omnistrate.com/schedule-mode: exclusive
