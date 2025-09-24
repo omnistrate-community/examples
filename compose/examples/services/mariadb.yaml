@@ -1,0 +1,90 @@
+version: "3.9"
+
+x-omnistrate-integrations:
+  - omnistrateLogging
+  - omnistrateMetrics
+
+services:
+  MariaDB:
+    container_name: "mariadb"
+    image: mariadb
+    x-omnistrate-api-params:
+      - key: database
+        description: Default DB Name
+        name: MariaDB Database
+        type: String
+        modifiable: true
+        required: true
+        export: true
+        defaultValue: database
+      - key: password
+        description: Default DB Password
+        name: MariaDB Password
+        type: Password
+        modifiable: true
+        required: true
+        export: false
+        defaultValue: a_secure_password
+      - key: username
+        description: Default DB Username
+        name: MariaDB Username
+        type: String
+        modifiable: true
+        required: true
+        export: true
+        defaultValue: username
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: $var.database
+      MARIADB_USER: $var.username
+      MARIADB_PASSWORD: $var.password
+    ports:
+      - "3306:3306"
+    volumes:
+      - source: db_data
+        target: /var/lib/mysql
+        type: bind
+        x-omnistrate-storage:
+          aws:
+            instanceStorageType: AWS::EBS_GP3
+            instanceStorageSizeGi: 10
+            instanceStorageIOPS: 3000
+            instanceStorageThroughputMiBps: 125
+          gcp:
+            instanceStorageType: GCP::PD_BALANCED
+            instanceStorageSizeGi: 10
+          azure:
+            instanceStorageType: AZURE::PREMIUM_SSD
+            instanceStorageSizeGi: 10
+      - source: db_conf
+        target: /etc/mysql
+        type: bind
+        x-omnistrate-storage:
+          aws:
+            instanceStorageType: AWS::EBS_GP3
+            instanceStorageSizeGi: 2
+            instanceStorageIOPS: 3000
+            instanceStorageThroughputMiBps: 125
+          gcp:
+            instanceStorageType: GCP::PD_BALANCED
+            instanceStorageSizeGi: 2
+          azure:
+            instanceStorageType: AZURE::PREMIUM_SSD
+            instanceStorageSizeGi: 2
+    x-omnistrate-capabilities:
+      autoscaling:
+        maxReplicas: 1
+        minReplicas: 1
+        idleMinutesBeforeScalingDown: 20
+        idleThreshold: 1
+        overUtilizedMinutesBeforeScalingUp: 3
+        overUtilizedThreshold: 80
+      enableMultiZone: true
+      serverlessConfiguration:
+        enableAutoStop: true
+        minimumNodesInPool: 1
+        targetPort: 3306
+
+volumes:
+  db_data:
+  db_conf:

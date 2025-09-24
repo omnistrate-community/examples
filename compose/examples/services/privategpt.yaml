@@ -1,0 +1,63 @@
+# https://cdn-icons-png.flaticon.com/512/6672/6672221.png
+version: "3.9"
+
+x-omnistrate-integrations:
+  - omnistrateLogging
+  - omnistrateMetrics
+
+services:
+  PrivateGPT:
+    x-omnistrate-compute:
+      instanceTypes:
+      - cloudProvider: aws
+        apiParam: instanceType
+      - cloudProvider: gcp
+        apiParam: instanceType
+      - cloudProvider: azure
+        apiParam: instanceType
+    x-omnistrate-capabilities:
+      httpReverseProxy:
+        targetPort: 8080
+      enableMultiZone: true
+      enableEndpointPerReplica: false
+    x-omnistrate-api-params:
+    - key: instanceType
+      description: Instance Type
+      name: Instance Type
+      type: String
+      modifiable: true
+      required: true
+      export: true
+    - key: fileURL
+      description: Model File URL
+      name: Model File URL
+      type: String
+      modifiable: true
+      required: true
+      export: true
+      defaultValue: "https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf"
+    image: ghcr.io/omnistrate/private-gpt:1.0
+    volumes:
+      - source: ./local_data/
+        target: /home/worker/app/local_data
+        type: bind
+        x-omnistrate-storage:
+          aws:
+            instanceStorageType: AWS::EBS_GP3
+            instanceStorageSizeGi: 10
+      - source: ./models/
+        target: /home/worker/app/models
+        type: bind
+        x-omnistrate-storage:
+          aws:
+            instanceStorageType: AWS::EBS_GP3
+            instanceStorageSizeGi: 10
+            instanceStorageIOPS: 3000
+            instanceStorageThroughputMiBps: 125
+    ports:
+      - 8001:8080
+    environment:
+      PORT: 8080
+      PGPT_PROFILES: docker
+      PGPT_MODE: local
+      FILE_URL: $var.fileURL

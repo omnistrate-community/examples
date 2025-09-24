@@ -1,0 +1,99 @@
+version: '3'
+# x-omnistrate-byoa: # Customer-Account
+#    AwsAccountId: '878427424418'
+#    AwsBootstrapRoleAccountArn : 'arn:aws:iam::878427424418:role/omnistrate-bootstrap-role'
+#    GcpProjectId: ''
+#    GcpProjectNumber: ''
+#    GcpServiceAccountEmail : ''
+# x-omnistrate-my-account: # My-Account
+#    AwsAccountId: '219806543127'
+#    AwsBootstrapRoleAccountArn : 'arn:aws:iam::219806543127:role/omnistrate-bootstrap-role'
+#    GcpProjectId: ''
+#    GcpProjectNumber: ''
+#    GcpServiceAccountEmail : ''
+services:
+  opensearch-cluster:
+    image: opensearchproject/opensearch:latest
+    container_name: opensearch-node1
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=$sys.compute.node.name
+      - discovery.seed_hosts=$sys.network.nodes[*].externalEndpoint
+      - cluster.initial_cluster_manager_nodes=$sys.compute.nodes[*].name
+      - bootstrap.memory_lock=true
+      - NUM_REPLICAS=1
+    volumes:
+      - ./data:/usr/share/opensearch/data
+    ports:
+      - '9200:9200'
+      - '9600:9600'
+    x-omnistrate-actionhooks:
+      - scope: CLUSTER
+        type: INIT
+        commandTemplate: |
+          echo "Action Hook Executed for scope: CLUSTER and type: INIT"
+      - scope: NODE
+        type: INIT
+        command:
+        - /bin/sh
+        - -c
+        commandTemplate: |
+          echo "Action Hook Executed for scope: NODE and type: INIT"
+      - scope: CLUSTER
+        type: ADD
+        commandTemplate: |
+          echo "Action Hook Executed for scope: CLUSTER and type: ADD"
+      - scope: NODE
+        type: ADD
+        commandTemplate: |
+          echo "Action Hook Executed for scope: NODE and type: ADD"
+      - scope: CLUSTER
+        type: REMOVE
+        commandTemplate: |
+          echo "Action Hook Executed for scope: CLUSTER and type: REMOVE"
+      - scope: NODE
+        type: REMOVE
+        commandTemplate: |
+          echo "Action Hook Executed for scope: NODE and type: REMOVE"
+      - scope: CLUSTER
+        type: PROMOTE
+        commandTemplate: |
+          echo "Action Hook Executed for scope: CLUSTER and type: PROMOTE"
+      - scope: NODE
+        type: PROMOTE
+        commandTemplate: |
+          echo "Action Hook Executed for scope: NODE and type: PROMOTE"
+      - scope: CLUSTER
+        type: DEMOTE
+        commandTemplate: |
+          echo "Action Hook Executed for scope: CLUSTER and type: DEMOTE"
+      - scope: NODE
+        type: DEMOTE
+        commandTemplate: |
+          echo "Action Hook Executed for scope: NODE and type: DEMOTE"
+      - scope: CLUSTER
+        type: HEALTH_CHECK
+        commandTemplate: |
+          echo "Action Hook Executed for scope: CLUSTER and type: HEALTH_CHECK"
+      - scope: NODE
+        type: HEALTH_CHECK
+        commandTemplate: |
+          echo "Action Hook Executed for scope: NODE and type: HEALTH_CHECK"
+      - scope: CLUSTER
+        type: POST_START
+        commandTemplate: |
+          echo "Action Hook Executed for scope: CLUSTER and type: POST_START"
+      - scope: NODE
+        type: POST_START
+        commandTemplate: |
+          echo "Action Hook Executed for scope: NODE and type: POST_START"
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:latest
+    container_name: opensearch-dashboards
+    ports:
+      - '5601:5601'
+    expose:
+      - '5601'
+    environment:
+      - OPENSEARCH_HOSTS=example.host

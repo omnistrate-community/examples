@@ -1,0 +1,40 @@
+version: '3.9'
+x-omnistrate-service-plan:
+  tenancyType: 'OMNISTRATE_MULTI_TENANCY'
+x-omnistrate-integrations:
+  - omnistrateLogging
+  - omnistrateMetrics
+services:
+  postgres:
+    image: postgres
+    ports:
+      - '5432:5432'
+    platform: linux/amd64
+    deploy:
+      resources:
+        limits:
+          cpus: '1000m'
+          memory: 256M
+        reservations:
+          cpus: '100m'
+          memory: 100M
+    x-omnistrate-capabilities:
+      autoscaling:
+        minReplicas: 1
+        maxReplicas: 1
+        idleMinutesBeforeScalingDown: 1
+        idleThreshold: 30
+        overUtilizedMinutesBeforeScalingUp: 1
+        overUtilizedThreshold: 80
+      serverlessConfiguration:
+        enableAutoStop: true
+        minimumNodesInPool: 0  
+        targetPort: 5432
+    environment:
+      - SECURITY_CONTEXT_USER_ID=999
+      - SECURITY_CONTEXT_GROUP_ID=999
+      - POSTGRES_USER=username
+      - POSTGRES_PASSWORD=password
+      - PGDATA=/var/lib/postgresql/data/dbdata
+    volumes:
+      - ./data:/var/lib/postgresql/data

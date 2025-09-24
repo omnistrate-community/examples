@@ -1,0 +1,27 @@
+version: '3'
+x-omnistrate-hosting-model:
+   HostingType : 'My-Account' # Customer-Account
+   AwsAccountId: '219806543127'
+   AwsBootstrapRoleAccountArn : 'arn:aws:iam::219806543127:role/omnistrate-bootstrap-role'
+   GcpProjectId: ''
+   GcpProjectNumber: ''
+   GcpServiceAccountEmail : ''
+services:
+  dremio:
+    image: dremio/dremio-oss
+    container_name: dremio
+    ports:
+      - 9047:9047
+      - 31010:31010
+      - 45678:45678
+    volumes:
+      - dremio:/opt/dremio/data
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+volumes:
+  dremio:

@@ -1,0 +1,31 @@
+version: '3'
+
+services:
+  writer:
+    image: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: writerdb
+      MYSQL_USER: user
+      MYSQL_PASSWORD: pass
+    volumes:
+      - ./data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+  reader:
+    image: mysql
+    restart: always
+    depends_on:
+    - writer
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: readerdb
+      MYSQL_USER: user
+      MYSQL_PASSWORD: pass
+      NUM_REPLICAS: 2
+      MYSQL_WRITER_PATH: pathofwriter
+    volumes:
+      - ./data:/var/lib/mysql
+    ports:
+      - "3306:3306"

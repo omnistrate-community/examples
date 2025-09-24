@@ -1,0 +1,63 @@
+version: "3.9"
+
+x-omnistrate-integrations:
+  - omnistrateLogging
+  - omnistrateMetrics
+
+services:
+  Postgres:
+    image: postgis/postgis
+    ports:
+      - "5432:5432"
+    environment:
+      - SECURITY_CONTEXT_USER_ID=999
+      - SECURITY_CONTEXT_GROUP_ID=999
+      - POSTGRES_USER=$var.username
+      - POSTGRES_PASSWORD=$var.password
+      - PGDATA=/var/lib/postgresql/data/dbdata
+    x-omnistrate-api-params:
+      - key: password
+        description: Default PostGIS password
+        name: Password
+        type: Password
+        modifiable: true
+        required: true
+        export: false
+        defaultValue: a_secure_password
+      - key: username
+        description: Default PostGIS username
+        name: Username
+        type: String
+        modifiable: true
+        required: true
+        export: true
+        defaultValue: username
+    volumes:
+      - source: ./pg-data
+        target: /var/lib/postgresql/data
+        type: bind
+        x-omnistrate-storage:
+          aws:
+            instanceStorageType: AWS::EBS_GP3
+            instanceStorageSizeGi: 10
+            instanceStorageIOPS: 3000
+            instanceStorageThroughputMiBps: 125
+          gcp:
+            instanceStorageType: GCP::PD_BALANCED
+            instanceStorageSizeGi: 10
+          azure:
+            instanceStorageType: AZURE::PREMIUM_SSD
+            instanceStorageSizeGi: 10
+    x-omnistrate-capabilities:
+      autoscaling:
+        maxReplicas: 1
+        minReplicas: 1
+        idleMinutesBeforeScalingDown: 20
+        idleThreshold: 1
+        overUtilizedMinutesBeforeScalingUp: 3
+        overUtilizedThreshold: 80
+      enableMultiZone: true
+      serverlessConfiguration:
+        enableAutoStop: true
+        minimumNodesInPool: 1
+        targetPort: 5432

@@ -1,0 +1,87 @@
+version: "3"
+x-omnistrate-integrations:
+  - omnistrateLogging
+  - omnistrateMetrics:
+      additionalMetrics:
+        postgres:
+          prometheusEndpoint: "http://localhost:9187/metrics"
+          metrics:
+            pg_settings_enable_sort: # this one should be very predictable and always return 1
+            pg_scrape_collector_success:
+              pg_scrape_sum:
+                aggregationFunction: sum
+            pg_stat_activity_count:
+              average_active_activity:
+                aggregationFunction: avg
+                labelFilters:
+                  state: active
+              max_postgres_activity:
+                aggregationFunction: max
+                labelFilters:
+                  datname: postgres
+            pg_settings_wal_receiver_status_interval_seconds:
+x-internal-integrations:
+  metrics:
+    additionalMetrics:
+      postgres:
+        prometheusEndpoint: "http://localhost:9187/metrics"
+        metrics:
+          pg_settings_enable_sort: # shared with customer
+          pg_settings_autovacuum: # internal only metric
+
+services:
+  postgres:
+    image: tomnislav/pg-with-exporter:2.0
+    ports:
+      - 5432:5432
+    x-omnistrate-compute:
+      instanceTypes:
+        - cloudProvider: aws
+          apiParam: writerInstanceTypeAWS
+        - cloudProvider: gcp
+          apiParam: writerInstanceTypeGCP
+        - cloudProvider: azure
+          apiParam: writerInstanceTypeAzure
+    environment:
+      - POSTGRESQL_PASSWORD=$var.postgresqlPassword
+      - POSTGRESQL_DATABASE=postgres
+      - POSTGRESQL_USERNAME=postgres
+      - POSTGRESQL_POSTGRES_PASSWORD=$var.postgresqlPassword
+      - DATA_SOURCE_NAME=postgresql://postgres:{{ $var.postgresqlPassword }}@localhost:5432/postgres?sslmode=disable
+      - SECURITY_CONTEXT_USER_ID=1001
+      - SECURITY_CONTEXT_FS_GROUP=1001
+      - SECURITY_CONTEXT_GROUP_ID=0
+    x-omnistrate-api-params:
+      - key: writerInstanceTypeAWS
+        description: Writer Instance Type for AWS
+        name: Writer Instance Type for AWS
+        type: String
+        modifiable: true
+        required: false
+        export: true
+        defaultValue: "t3.medium"
+      - key: writerInstanceTypeGCP
+        description: Writer Instance Type for GCP
+        name: Writer Instance Type for GCP
+        type: String
+        modifiable: true
+        required: false
+        export: true
+        defaultValue: "e2-medium"
+      - key: writerInstanceTypeAzure
+        description: Writer Instance Type for Azure
+        name: Writer Instance Type for Azure
+        type: String
+        modifiable: true
+        required: false
+        export: true
+        defaultValue: "Standard_B2ms"
+      - key: postgresqlPassword
+        description: Default DB Password
+        name: Password
+        type: String
+        modifiable: false
+        required: false
+        export: false
+        defaultValue: "postgres"
+    x-omnistrate-mode-internal: false
