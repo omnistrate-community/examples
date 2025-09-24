@@ -1,13 +1,3 @@
----
-tags:
-  - example
-  - observability
-  - otel
-  - sidecar
-  - monitoring
----
-
-<!-- TODO: MOVE TO GITHUB REPO -->
 # Configuring your custom Telemetry (OTEL) Exporter
 
 Omnistrate provides out-of-the-box managed OTEL integrations for various observability providers. However, if you do not find the provider of your liking in the list, or you want to have more control over the whole process [custom sidecars](../../runtime-guides/custom-sidecars.md) resource capability allows you to configure OTEL sidecar container based on your needs easily.

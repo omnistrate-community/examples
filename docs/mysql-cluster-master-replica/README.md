@@ -1,14 +1,3 @@
----
-tags:
-  - example
-  - database
-  - mysql
-  - cluster
-  - master-replica
-  - high-availability
----
-
-<!-- TODO: MOVE TO GITHUB REPO -->
 # MySQL Master-Replica Cluster resource example
 
 In this example exercise, we will build a MySQL SaaS with a Master-Replica architecture leveraging a Cluster passive component.

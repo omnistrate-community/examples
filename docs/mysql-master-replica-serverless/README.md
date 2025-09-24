@@ -1,14 +1,3 @@
----
-tags:
-  - example
-  - database
-  - mysql
-  - serverless
-  - master-replica
-  - scaling
----
-
-<!-- TODO: MOVE TO GITHUB REPO -->
 # Serverless Master-Replica database example using MySQL
 
 In this example exercise, we will build a MySQL SaaS with serverless capabilities enabled by Omnistrate and a master-replica architecture. 

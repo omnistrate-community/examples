@@ -1,12 +1,3 @@
----
-tags:
-  - example
-  - analytics
-  - trino
-  - sql
----
-
-<!-- TODO: MOVE TO GITHUB REPO -->
 # Trino BYOC example
 
 This example shows how to deploy a Trino SaaS in your customers account using BYOC mode.

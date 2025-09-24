@@ -1,4 +1,3 @@
-
 # Integrating Billing with GCP Marketplace
 
 Demo Video:

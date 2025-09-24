@@ -1,11 +1,3 @@
----
-tags:
-  - example
-  - streaming
-  - kafka
----
-
-<!-- TODO: MOVE TO GITHUB REPO -->
 # Streaming example using Redpanda
 
 Redpanda is a simple, powerful, and cost-efficient streaming data platform that is compatible with Kafka® APIs while eliminating Kafka complexity. To learn more about Redpanda, see [this link](https://redpanda.com/)

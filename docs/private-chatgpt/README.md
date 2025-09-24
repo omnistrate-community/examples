@@ -1,16 +1,3 @@
----
-tags:
-  - example
-  - ai
-  - chatgpt
-  - private-gpt
-  - compose
-  - byoc
-  - gpu
-  - templates
----
-
-<!-- TODO: MOVE TO GITHUB REPO -->
 # Private ChatGPT
 
 This example shows how to deploy a private ChatGPT instance.

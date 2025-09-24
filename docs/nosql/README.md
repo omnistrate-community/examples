@@ -1,12 +1,3 @@
----
-tags:
-  - example
-  - database
-  - nosql
-  - compose
----
-
-<!-- TODO: MOVE TO GITHUB REPO -->
 # NoSQL example using MongoDB
 
 MongoDB is a well known NoSQL technology with SSPL license. To learn more about MongoDB, see [this link](https://github.com/mongodb/mongo)

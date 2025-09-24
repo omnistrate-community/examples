@@ -1,13 +1,3 @@
----
-tags:
-  - example
-  - database
-  - postgresql
-  - byoc
-  - deployment-model
----
-
-<!-- TODO: MOVE TO GITHUB REPO -->
 # PostgreSQL as a Hosted Solution and Bring your Own Cloud
 
 This examples show how to deploy a Postgres SaaS in your account (provider hosted) and your customers account (BYOC hosted).

@@ -1,12 +1,3 @@
----
-tags:
-  - example
-  - search
-  - elasticsearch
-  - compose
----
-
-<!-- TODO: MOVE TO GITHUB REPO -->
 # Search example using OpenSearch
 
 OpenSearch is the flexible, scalable, open-source way to build solutions for data-intensive applications. To learn more about OpenSearch, see [this link](https://opensearch.org/)

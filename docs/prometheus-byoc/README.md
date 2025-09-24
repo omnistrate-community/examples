@@ -1,14 +1,3 @@
----
-tags:
-  - example
-  - monitoring
-  - prometheus
-  - byoc
-  - observability
-  - metrics
----
-
-<!-- TODO: MOVE TO GITHUB REPO -->
 # Prometheus BYOC example
 
 This example shows how to deploy a Prometheus SaaS in your customers account using BYOC mode.

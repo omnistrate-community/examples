@@ -4,65 +4,65 @@ This section contains practical examples demonstrating how to build various type
 
 ## Database Examples
 
-### [Vector Database (PostgreSQL with pgvector)](dbaas/index.md)
+### [Vector Database (PostgreSQL with pgvector)](dbaas/README.md)
 
 Build a PostgreSQL SaaS with pgvector extension for vector database capabilities. This comprehensive example covers everything from basic setup to advanced features like replicas, serverless configuration, and custom extensions.
 
-### [MySQL Serverless Master-Replica](mysql-master-replica-serverless/index.md)
+### [MySQL Serverless Master-Replica](mysql-master-replica-serverless/README.md)
 
 Deploy a MySQL database with master-replica configuration in serverless mode, providing automatic scaling and high availability.
 
-### [MySQL Cluster Master-Replica](mysql-cluster-master-replica/index.md)
+### [MySQL Cluster Master-Replica](mysql-cluster-master-replica/README.md)
 
 Set up a MySQL cluster with master-replica architecture for high-performance database workloads.
 
-### [NoSQL Database](nosql/index.md)
+### [NoSQL Database](nosql/README.md)
 
 Deploy and manage NoSQL database solutions with Omnistrate's platform capabilities.
 
-### [PostgreSQL as a Hosted Solution and Bring your Own Cloud](postgres-provider-and-byoc/index.md)
+### [PostgreSQL as a Hosted Solution and Bring your Own Cloud](postgres-provider-and-byoc/README.md)
 
 Compare different deployment models for PostgreSQL - provider-hosted vs bring-your-own-cloud (BYOC) approaches.
 
 ## AI & Machine Learning Examples
 
-### [Private ChatGPT](private-chatgpt/index.md)
+### [Private ChatGPT](private-chatgpt/README.md)
 
 Deploy a private ChatGPT instance using PrivateGPT for secure, document-aware conversations with your own data.
 
 ## Analytics & Data Processing
 
-### [Trino](trino-byoc/index.md)
+### [Trino](trino-byoc/README.md)
 
 Set up Trino for distributed SQL query processing across multiple data sources.
 
-### [Search](search/index.md)
+### [Search](search/README.md)
 
 Build search capabilities into your SaaS applications with modern search technologies.
 
-### [Streaming](streaming/index.md)
+### [Streaming](streaming/README.md)
 
 Implement real-time data streaming solutions for event-driven architectures.
 
 ## Monitoring & Observability
 
-### [Prometheus BYOC](prometheus-byoc/index.md)
+### [Prometheus BYOC](prometheus-byoc/README.md)
 
 Deploy Prometheus monitoring in your customer's cloud account (BYOC) for comprehensive observability.
 
-### [Custom OTEL Exporter](custom-otel-sidecar/index.md)
+### [Custom OTEL Exporter](custom-otel-sidecar/README.md)
 
 Integrate your own OpenTelemetry exporter as a sidecar for custom observability requirements.
 
 ## Collaboration & Productivity
 
-### [Wiki SaaS](wiki/index.md)
+### [Wiki SaaS](wiki/README.md)
 
 Build a wiki SaaS using Outline, an open-source alternative to Confluence for team documentation.
 
 ## Billing & Metering
 
-### [Integrate Billing with Marketplace](integrate-billing-with-marketplace/index.md)
+### [Integrate Billing with Marketplace](integrate-billing-with-marketplace/README.md)
 
 ## Next Steps
 
