@@ -4,29 +4,19 @@ This repository contains comprehensive examples and documentation for building S
 
 ## Repository Structure
 
-### 📁 `compose/examples/`
+### 📁 `compose/`
 
 Contains Docker Compose and YAML configuration files for various services that can be deployed on Omnistrate:
 
-#### `services/` - Docker Compose Examples
-Ready-to-use Docker Compose files for popular services:
+**services**
+**features**
 
-- **Databases**: `cassandra.yaml`, `clickhouse.yaml`, `couchbase.yaml`, `mariadb.yaml`, `mongo.yaml`, `mysql.yaml`, `postgres.yaml`, `postgres_cluster.yaml`, `postgis.yaml`, `redis.yaml`
-- **Search & Analytics**: `opensearch.yaml`, `manticore-search.yaml`, `trino.yaml`
-- **Streaming & Messaging**: `redpanda.yaml`, `timeplus.yaml`
-- **AI/ML & Data**: `ferretdb.yaml`, `falkordb.yaml`, `mageai.yaml`, `privategpt.yaml`
-- **Monitoring & Observability**: `prometheus.yaml`, `signoz.yaml`
-- **Collaboration**: `outline_wiki.yaml`
+### 📁 `spec/`
 
-#### `yamls/` - Service Plan Specifications
-Advanced YAML configurations organized by service type, including:
+Contains Docker Compose and YAML configuration files for various services that can be deployed on Omnistrate:
 
-- **Database Services**: `cassandra/`, `clickhouse/`, `couchbase/`, `mariadb/`, `mysql/`, `opensearch/`, `postgis/`, `postgres/`, `redis/`
-- **Specialized Services**: `battery/`, `cnpg/`, `dremio/`, `ferretdb/`, `harbor/`, `levo/`, `motorhead/`, `nginx/`, `pulsar/`, `signoz/`, `wordpress/`
-- **Platform Features**: `licensing/` - Examples for implementing licensing and billing features
-
-#### `features/` - Platform Feature Examples
-- `licensing.yaml` - Configuration examples for licensing and monetization features
+**services**
+**features**
 
 ### 📁 `docs/`
 
