@@ -1,0 +1,40 @@
+version: '3.9'
+x-omnistrate-integrations:
+  - omnistrateLogging
+  - omnistrateMetrics
+x-omnistrate-load-balancer:
+  tcp:
+    - name: postgres-lb
+      description: L4 Load Balancer for Postgres
+      ports:
+        - associatedResourceKeys:
+            - postgres
+          ingressPort: 5432
+          backendPort: 5432
+services:
+  postgres:
+    image: postgres
+    ports:
+      - '5432:5432'
+    environment:
+      - SECURITY_CONTEXT_USER_ID=999
+      - SECURITY_CONTEXT_GROUP_ID=999
+      - POSTGRES_USER=username
+      - POSTGRES_PASSWORD=password
+      - PGDATA=/var/lib/postgresql/data/dbdata
+    volumes:
+      - source: ./data
+        target: /var/lib/postgresql/data
+        type: bind
+        x-omnistrate-storage:
+          aws:
+            instanceStorageType: AWS::EBS_GP3
+            instanceStorageSizeGi: 10
+            instanceStorageIOPS: 3000
+            instanceStorageThroughputMiBps: 125
+          gcp:
+            instanceStorageType: GCP::PD_BALANCED
+            instanceStorageSizeGi: 10
+          azure:
+            instanceStorageType: AZURE::STANDARD_SSD
+            instanceStorageSizeGi: 10

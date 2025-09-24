@@ -1,0 +1,45 @@
+version: '3.9'
+x-omnistrate-my-account:
+  AwsAccountId: '339713121445'
+  AwsBootstrapRoleAccountArn: 'arn:aws:iam::339713121445:role/omnistrate-bootstrap-role'
+  GcpProjectId: 'omnistrate-dataplane-host-dev'
+  GcpProjectNumber: '61114262792'
+  GcpServiceAccountEmail: 'bootstrap@omnistrate-dataplane-host-dev.iam.gserviceaccount.com'
+  AzureSubscriptionId: '0fa05079-dd73-4b88-babc-05537817604a'
+  AzureTenantId: '4e6c839d-e141-462e-bc65-8cd863580351'
+x-internal-integrations:
+  metrics:
+    provider: newRelic
+    endpoint: https://otlp.nr-data.net
+    secretLocators:
+      aws: arn:aws:secretsmanager:ap-south-1:339713121445:secret:dev/observability/new-relic-oSCbN8
+      gcp: projects/61114262792/secrets/NewRelicLicenseKey/versions/latest
+      azure: OmnistrateE2ETests/NewRelicAPIKey # Vault in "Dev Dataplane - Service Provider Hosted" subscription
+    serviceComponentsConfiguration:
+      promexporter:
+        prometheusEndpoint: "http://localhost:8080/metrics"
+  logs:
+    provider: newRelic
+    endpoint: https://otlp.nr-data.net
+    secretLocators:
+      aws: arn:aws:secretsmanager:ap-south-1:339713121445:secret:dev/observability/new-relic-oSCbN8
+      gcp: projects/61114262792/secrets/NewRelicLicenseKey/versions/latest
+      azure: OmnistrateE2ETests/NewRelicAPIKey # Vault in "Dev Dataplane - Service Provider Hosted" subscription
+services:
+  postgres:
+    image: postgres
+    ports:
+      - '5432:5432'
+    environment:
+      - SECURITY_CONTEXT_USER_ID=999
+      - SECURITY_CONTEXT_GROUP_ID=999
+      - POSTGRES_USER=username
+      - POSTGRES_PASSWORD=password
+      - PGDATA=/var/lib/postgresql/data/dbdata
+    volumes:
+      - ./data:/var/lib/postgresql/data
+  promexporter:
+    image: quay.io/brancz/prometheus-example-app:v0.5.0
+    ports:
+      - '8080'
+    x-omnistrate-mode-internal: true

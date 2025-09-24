@@ -1,0 +1,88 @@
+version: '3.9'
+x-omnistrate-my-account:
+  GcpProjectId: 'omnistrate-dataplane-host-dev'
+  GcpProjectNumber: '61114262792'
+  GcpServiceAccountEmail: 'bootstrap@omnistrate-dataplane-host-dev.iam.gserviceaccount.com'
+  AwsAccountId: '339713121445'
+  AwsBootstrapRoleAccountArn: 'arn:aws:iam::339713121445:role/omnistrate-bootstrap-role'
+  AzureSubscriptionId: '0fa05079-dd73-4b88-babc-05537817604a'
+  AzureTenantId: '4e6c839d-e141-462e-bc65-8cd863580351'
+services:
+  reader:
+    image: postgres
+    ports:
+      - '5432:5432'
+    environment:
+      - SECURITY_CONTEXT_USER_ID=999
+      - SECURITY_CONTEXT_GROUP_ID=999
+      - POSTGRESQL_MASTER_HOST=writer
+      - POSTGRESQL_REPLICATION_MODE=slave
+      - POSTGRESQL_REPLICATION_USER=repl_user
+      - POSTGRESQL_REPLICATION_PASSWORD=repl_password
+      - POSTGRESQL_MASTER_PORT_NUMBER=5432
+      - POSTGRES_USER=username
+      - POSTGRES_PASSWORD=password
+      - PGDATA=/var/lib/postgresql/data/dbdata
+    volumes:
+      - ./data:/var/lib/postgresql/data
+      - source: managed-bucket
+        target: /mnt/gcs
+        type: volume
+        x-omnistrate-storage:
+          gcp:
+            clusterStorageType: GCP::GCS
+    x-omnistrate-mode-internal: true
+
+  writer:
+    image: postgres
+    ports:
+      - '5432:5432'
+    depends_on:
+      - reader
+    x-omnistrate-capabilities:
+      backupConfiguration:
+        backupRetentionInDays: 1
+        backupPeriodInHours: 1
+    x-omnistrate-actionhooks:
+      - scope: CLUSTER
+        type: INIT
+        commandTemplate: >
+          PGPASSWORD=password psql -U username
+          -h writer postgres -c "CREATE DATABASE testdb"
+    environment:
+      - SECURITY_CONTEXT_USER_ID=999
+      - SECURITY_CONTEXT_GROUP_ID=999
+      - POSTGRESQL_REPLICATION_MODE=master
+      - POSTGRESQL_REPLICATION_USER=repl_user
+      - POSTGRESQL_REPLICATION_PASSWORD=repl_password
+      - POSTGRES_USER=username
+      - POSTGRES_PASSWORD=password
+      - PGDATA=/var/lib/postgresql/data/dbdata
+    x-omnistrate-mode-internal: false
+    volumes:
+      - source: pg_master_data
+        target: /var/lib/postgresql/data
+        type: volume
+        x-omnistrate-storage:
+          aws:
+            instanceStorageType: AWS::EBS_GP3
+            instanceStorageSizeGi: 10
+            instanceStorageIOPS: 3000
+            instanceStorageThroughputMiBps: 125
+          gcp:
+            instanceStorageType: GCP::PD_BALANCED
+            instanceStorageSizeGi: 100
+          azure:
+            instanceStorageType: AZURE::PREMIUM_SSD
+            instanceStorageSizeGi: 100
+      - source: managed-bucket
+        target: /mnt/gcs
+        type: volume
+        x-omnistrate-storage:
+          gcp:
+            clusterStorageType: GCP::GCS
+volumes:
+  pg_master_data:
+    driver: local
+  managed-bucket:
+    driver: blob

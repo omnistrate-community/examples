@@ -1,0 +1,105 @@
+version: "3.9"
+
+x-omnistrate-integrations:
+  - omnistrateLogging
+  - omnistrateMetrics
+
+services:
+  opensearch-cluster:
+    x-omnistrate-mode-internal: true
+    x-omnistrate-compute:
+      instanceTypes:
+      - cloudProvider: aws
+        apiParam: instanceType
+      - cloudProvider: gcp
+        apiParam: instanceType
+      - cloudProvider: azure
+        apiParam: instanceType
+    x-omnistrate-capabilities:
+      enableMultiZone: true
+      enableEndpointPerReplica: true
+    image: opensearchproject/opensearch:latest
+    environment:
+      - cluster.name=$var.clusterName
+      - node.name=$sys.compute.node.name
+      - discovery.seed_hosts=$sys.compute.nodes[*].name
+      - cluster.initial_cluster_manager_nodes=$sys.compute.nodes[*].name
+      - bootstrap.memory_lock=true
+    volumes:
+      - source: ./data
+        target: /usr/share/opensearch/data
+        type: bind
+        x-omnistrate-storage:
+          aws:
+            instanceStorageType: AWS::EBS_GP3
+            instanceStorageSizeGi: 10
+            instanceStorageIOPS: 3000
+            instanceStorageThroughputMiBps: 125
+          gcp:
+            instanceStorageType: GCP::PD_BALANCED
+            instanceStorageSizeGi: 10
+          azure:
+            instanceStorageType: AZURE::PREMIUM_SSD
+            instanceStorageSizeGi: 10
+    ports:
+      - '9200:9200'
+    x-omnistrate-api-params:
+      - key: instanceType
+        description: Instance Type
+        name: Instance Type
+        type: String
+        modifiable: true
+        required: true
+        export: true
+      - key: clusterName
+        description: OpenSearch Cluster Name
+        name: Cluster Name
+        type: String
+        modifiable: true
+        required: true
+        export: true
+    
+  OpenSearch:
+    x-omnistrate-mode-internal: false
+    image: opensearchproject/opensearch-dashboards:latest
+    ports:
+      - '5601:5601'
+    environment:
+      - OPENSEARCH_HOSTS=https://{{ $opensearch-cluster.sys.network.externalClusterEndpoint }}:9200
+    x-omnistrate-compute:
+      instanceTypes:
+        - name: t3.medium
+          cloudProvider: aws
+        - name: e2-medium
+          cloudProvider: gcp
+        - name: Standard_B2als_v2
+          cloudProvider: azure
+    depends_on:
+      - opensearch-cluster
+    x-omnistrate-capabilities:
+      autoscaling:
+        minReplicas: 1
+        maxReplicas: 5
+      httpReverseProxy:
+        targetPort: 5601
+      enableMultiZone: true
+      enableEndpointPerReplica: false
+    x-omnistrate-api-params:
+      - key: instanceType
+        description: Instance Type
+        name: Instance Type
+        type: String
+        modifiable: true
+        required: true
+        export: true
+        parameterDependencyMap:
+          opensearch-cluster: instanceType
+      - key: clusterName
+        description: OpenSearch cluster name
+        name: Cluster Name
+        type: String
+        modifiable: true
+        required: true
+        export: true
+        parameterDependencyMap:
+          opensearch-cluster: clusterName

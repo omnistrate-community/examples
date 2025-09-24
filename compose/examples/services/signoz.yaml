@@ -1,0 +1,297 @@
+# https://signoz.io/img/SigNozLogo-orange.svg
+version: "3.9"
+
+x-omnistrate-integrations:
+  - omnistrateLogging
+  - omnistrateMetrics
+
+services:
+  clickhouse:
+    x-omnistrate-mode-internal: true
+    image: clickhouse/clickhouse-server:24.2.1.2248
+    x-omnistrate-api-params:
+      - key: instanceType
+        description: Instance Type
+        name: Instance Type
+        type: String
+        modifiable: true
+        required: true
+        export: true
+      - key: password
+        description: Default ClickHouse password
+        name: Password
+        type: Password
+        modifiable: true
+        required: true
+        export: false
+        defaultValue: a_secure_password
+      - key: username
+        description: Default ClickHouse username
+        name: Username
+        type: String
+        modifiable: true
+        required: true
+        export: true
+        defaultValue: root
+    environment:
+      CLICKHOUSE_USER: $var.username
+      CLICKHOUSE_PASSWORD: $var.password
+    x-omnistrate-compute:
+      instanceTypes:
+        - apiParam: instanceType
+          cloudProvider: aws
+        - apiParam: instanceType
+          cloudProvider: gcp
+        - apiParam: instanceType
+          cloudProvider: azure
+    volumes:
+      - source: ./clickhouse-data
+        target: /var/lib/clickhouse
+        type: bind
+        x-omnistrate-storage:
+          aws:
+            instanceStorageType: AWS::EBS_GP3
+            instanceStorageSizeGi: 10
+            instanceStorageIOPS: 3000
+            instanceStorageThroughputMiBps: 125
+          gcp:
+            instanceStorageType: GCP::PD_BALANCED
+            instanceStorageSizeGi: 10
+          azure:
+            instanceStorageType: AZURE::PREMIUM_SSD
+            instanceStorageSizeGi: 10
+    ports:
+      - '8123:8123'
+      - '9000:9000'
+      - '9009:9009'
+
+  otel-collector:
+    x-omnistrate-mode-internal: true
+    image: omnistrate/otel-collector:0.88.12
+    environment:
+      - CLICKHOUSE_DB=$var.db
+      - CLICKHOUSE_PASSWORD=$var.password
+      - CLICKHOUSE_USERNAME=$var.username
+      - CLICKHOUSE_SERVER=$var.server
+      - CLICKHOUSE_PORT=$var.port
+      - LOW_CARDINAL_EXCEPTION_GROUPING=false
+      - SECURITY_CONTEXT_USER_ID=0
+      - SECURITY_CONTEXT_FS_GROUP=0
+      - SECURITY_CONTEXT_GROUP_ID=0
+    ports:
+      - "4317:4317" # OTLP gRPC receiver
+      - "4318:4318" # OTLP HTTP receiver
+    x-omnistrate-compute:
+      instanceTypes:
+        - apiParam: instanceType
+          cloudProvider: aws
+        - apiParam: instanceType
+          cloudProvider: gcp
+        - apiParam: instanceType
+          cloudProvider: azure
+    x-omnistrate-api-params:
+      - key: instanceType
+        description: Instance Type
+        name: Instance Type
+        type: String
+        modifiable: true
+        required: true
+        export: true
+      - key: password
+        description: Default ClickHouse password
+        name: Password
+        type: Password
+        modifiable: true
+        required: true
+        export: false
+        defaultValue: a_secure_password
+      - key: username
+        description: Default ClickHouse username
+        name: Username
+        type: String
+        modifiable: true
+        required: true
+        export: true
+        defaultValue: root
+      - key: db
+        description: Default ClickHouse DB
+        name: Clickhouse DB
+        type: String
+        modifiable: true
+        required: true
+        export: true
+      - key: server
+        description: Default ClickHouse Server
+        name: Clickhouse Server
+        type: String
+        modifiable: true
+        required: true
+        export: true
+      - key: port
+        description: Default ClickHouse Port
+        name: Clickhouse Port
+        type: Float64
+        modifiable: true
+        required: true
+        export: true
+
+  query-service:
+    image: omnistrate/signoz-query-service:0.38.0
+    ports:
+      - "8088:8085"    # query-service port
+    volumes:
+      - ./query-service-data:/var/lib/signoz/
+    environment:
+    - ClickHouseUrl=tcp://clickhouse:9000/?database=signoz_traces&username={{ $var.clickhouseUsername }}&password={{ $var.clickhousePassword }}
+    - ALERTMANAGER_API_PREFIX=http://alertmanager:9093/api/
+    - SIGNOZ_LOCAL_DB_PATH=/var/lib/signoz/signoz.db
+    - DASHBOARDS_PATH=/root/config/dashboards
+    - STORAGE=clickhouse
+    - GODEBUG=netdns=go
+    - TELEMETRY_ENABLED=false
+    - DEPLOYMENT_TYPE=docker-swarm
+    - SECURITY_CONTEXT_FS_GROUP=0
+    - SECURITY_CONTEXT_GROUP_ID=0
+    - SECURITY_CONTEXT_USER_ID=0
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'localhost:8080/api/v1/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    x-omnistrate-mode-internal: true
+    x-omnistrate-compute:
+      instanceTypes:
+        - apiParam: instanceType
+          cloudProvider: aws
+        - apiParam: instanceType
+          cloudProvider: gcp
+        - apiParam: instanceType
+          cloudProvider: azure
+    x-omnistrate-api-params:
+      - key: instanceType
+        description: Instance Type
+        name: Instance Type
+        type: String
+        modifiable: true
+        required: true
+        export: true
+      - key: clickhousePassword
+        description: Default ClickHouse password
+        name: Password
+        type: Password
+        modifiable: true
+        required: true
+        export: false
+        defaultValue: a_secure_password
+      - key: clickhouseUsername
+        description: Default ClickHouse username
+        name: Username
+        type: String
+        modifiable: true
+        required: true
+        export: true
+        defaultValue: root
+
+  signoz:
+    image: omnistrate/signoz-frontend:0.38.0
+    x-omnistrate-compute:
+      instanceTypes:
+        - apiParam: instanceType
+          cloudProvider: aws
+        - apiParam: instanceType
+          cloudProvider: gcp
+        - apiParam: instanceType
+          cloudProvider: azure
+    x-omnistrate-api-params:
+      - key: instanceType
+        description: Instance Type
+        name: Instance Type
+        type: String
+        modifiable: true
+        required: true
+        export: true
+    x-omnistrate-mode-internal: true
+    x-omnistrate-capabilities:
+      httpReverseProxy:
+        targetPort: 3301
+    ports:
+    - 3301:3301
+    environment:
+    - SECURITY_CONTEXT_FS_GROUP=0
+    - SECURITY_CONTEXT_GROUP_ID=0
+    - SECURITY_CONTEXT_USER_ID=0
+
+  Signoz-Cluster:
+    image: omnistrate/noop
+    depends_on:
+      - clickhouse
+      - query-service
+      - signoz
+      - otel-collector
+    x-omnistrate-api-params:
+      - key: instanceType
+        description: Instance Type
+        name: Instance Type
+        type: String
+        modifiable: true
+        required: true
+        export: true
+        parameterDependencyMap:
+          otel-collector: instanceType
+          clickhouse: instanceType
+          query-service: instanceType
+          signoz: instanceType
+      - key: password
+        description: Default ClickHouse password
+        name: Password
+        type: Password
+        modifiable: true
+        required: true
+        export: false
+        defaultValue: a_secure_password
+        parameterDependencyMap:
+          otel-collector: password
+          clickhouse: password
+          query-service: clickhousePassword
+      - key: username
+        description: Default ClickHouse username
+        name: Username
+        type: String
+        modifiable: true
+        required: true
+        export: true
+        defaultValue: root
+        parameterDependencyMap:
+          otel-collector: username
+          clickhouse: username
+          query-service: clickhouseUsername
+      - key: db
+        description: Default ClickHouse DB
+        name: Clickhouse DB
+        type: String
+        modifiable: true
+        required: true
+        export: true
+        parameterDependencyMap:
+          otel-collector: db
+      - key: server
+        description: Default ClickHouse Server
+        name: Clickhouse Server
+        type: String
+        modifiable: true
+        required: false
+        defaultValue: clickhouse
+        export: true
+        parameterDependencyMap:
+          otel-collector: server
+      - key: port
+        description: Default ClickHouse Port
+        name: Clickhouse Port
+        type: Float64
+        modifiable: true
+        required: false
+        defaultValue: "9000"
+        export: true
+        parameterDependencyMap:
+          otel-collector: port
+    x-omnistrate-mode-internal: false

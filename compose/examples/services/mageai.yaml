@@ -1,0 +1,47 @@
+version: '3.9'
+x-omnistrate-service-plan:
+  name: Free Tier
+  tenancyType: OMNISTRATE_MULTI_TENANCY
+x-omnistrate-integrations:
+  - omnistrateLogging
+  - omnistrateMetrics
+services:
+  mageai:
+    x-omnistrate-api-params:
+      - key: name
+        description: Name of your MageAI project
+        name: Name
+        type: String
+        modifiable: false
+        required: true
+        export: true
+    x-omnistrate-capabilities:
+      httpReverseProxy:
+        targetPort: 6789
+    image: mageai/mageai:0.9.72
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: 500m
+          memory: 512M
+    platform: linux/arm64
+    ports:
+      - '6789:6789'
+    volumes:
+      - source: ./
+        target: /home/src
+        type: bind
+        x-omnistrate-storage:
+          aws:
+            instanceStorageType: AWS::EBS_GP3
+            instanceStorageSizeGi: 30
+          gcp:
+            instanceStorageType: GCP::PD_BALANCED
+            instanceStorageSizeGi: 30
+          azure:
+            instanceStorageType: AZURE::PREMIUM_SSD
+            instanceStorageSizeGi: 30
+    command: /app/run_app.sh mage start '{{ $var.name }}'

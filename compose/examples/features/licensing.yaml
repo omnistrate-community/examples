@@ -1,0 +1,24 @@
+version: '3.9'
+
+x-customer-integrations:
+  licensing: 
+    licenseExpirationInDays: 7
+    productPlanUniqueIdentifier: 'PRODUCT-SAMPLE-SKU-UNIQUE-VALUE'
+
+x-omnistrate-load-balancer:
+  https:
+    - name: frontend
+      description: L7 Load Balancer for Web
+      paths:
+        - associatedResourceKey: web
+          path: /
+          backendPort: 8080
+
+services:
+  web:
+    image: ghcr.io/omnistrate-community/licensing-example-go:0.1.10
+    ports:
+      - '8080:8080'
+    environment:
+      - SECURITY_CONTEXT_USER_ID=2000
+      - SECURITY_CONTEXT_GROUP_ID=1000

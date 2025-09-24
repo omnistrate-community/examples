@@ -1,0 +1,43 @@
+# https://manticoresearch.com/images/favicon.png
+version: '3.9'
+
+x-omnistrate-integrations:
+  - omnistrateLogging
+  - omnistrateMetrics
+
+services:
+  Manticore:
+    container_name: manticore
+    image: manticoresearch/manticore
+    x-omnistrate-compute:
+      instanceTypes:
+        - cloudProvider: aws
+          apiParam: instanceType
+        - cloudProvider: gcp
+          apiParam: instanceType
+        - cloudProvider: azure
+          apiParam: instanceType
+    x-omnistrate-capabilities:
+      httpReverseProxy:
+        targetPort: 9312
+      enableMultiZone: true
+      enableEndpointPerReplica: false
+    x-omnistrate-api-params:
+      - key: instanceType
+        description: Instance Type
+        name: Instance Type
+        type: String
+        modifiable: true
+        required: true
+        export: true
+    environment:
+      - EXTRA=1
+      - SECURITY_CONTEXT_USER_ID=0
+      - SECURITY_CONTEXT_GROUP_ID=0
+      - SECURITY_CONTEXT_FS_GROUP=0
+    ports:
+      - 9306:9306
+      - 9308:9308
+      - 9312:9312
+    volumes:
+      - ./data:/var/lib/manticore

@@ -1,0 +1,26 @@
+version: '3.9'
+services:
+  postgres:
+    image: postgres
+    ports:
+      - '5432:5432'
+    x-omnistrate-capabilities:
+      autoscaling:
+        minReplicas: 2
+        maxReplicas: 2
+        idleMinutesBeforeScalingDown: 1
+        idleThreshold: 30
+        overUtilizedMinutesBeforeScalingUp: 1
+        overUtilizedThreshold: 80
+      serverlessConfiguration:
+        enableAutoStop: true
+        minimumNodesInPool: 0  
+        targetPort: 5432
+    environment:
+      - SECURITY_CONTEXT_USER_ID=999
+      - SECURITY_CONTEXT_GROUP_ID=999
+      - POSTGRES_USER=username
+      - POSTGRES_PASSWORD=password
+      - PGDATA=/var/lib/postgresql/data/dbdata
+    volumes:
+      - ./data:/var/lib/postgresql/data

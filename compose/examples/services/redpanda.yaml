@@ -1,0 +1,48 @@
+version: "3.9"
+
+x-omnistrate-integrations:
+  - omnistrateLogging
+  - omnistrateMetrics
+
+networks:
+  redpanda_network:
+    driver: bridge
+services:
+  Redpanda:
+    image: "ghcr.io/omnistrate/demos-redpanda:v23.2.9-core"
+    ports:
+      - "9092:9092"
+      - "8082:8082"
+      - "8081:8081"
+      - "9644:9644"
+    x-omnistrate-mode-internal: false
+    x-omnistrate-compute:
+      instanceTypes:
+        - cloudProvider: aws
+          apiParam: instanceType
+        - cloudProvider: gcp
+          apiParam: instanceType
+        - cloudProvider: azure
+          apiParam: instanceType
+    x-omnistrate-capabilities:
+      enableMultiZone: true
+      enableEndpointPerReplica: true
+      autoscaling:
+        minReplicas: 1
+        maxReplicas: 5
+    x-omnistrate-api-params:
+      - key: instanceType
+        description: Instance Type
+        name: Instance Type
+        type: String
+        modifiable: true
+        required: true
+        export: true
+    environment:
+      SECURITY_CONTEXT_USER_ID: "0"
+      SECURITY_CONTEXT_GROUP_ID: "0"
+      SECURITY_CONTEXT_FS_GROUP: "0"
+    volumes:
+      - ./data:/var/lib/redpanda/data
+    networks:
+      - redpanda_network

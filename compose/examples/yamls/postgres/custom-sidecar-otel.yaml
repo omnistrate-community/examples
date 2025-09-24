@@ -1,0 +1,48 @@
+version: '3.9'
+x-omnistrate-my-account:
+  AwsAccountId: '339713121445'
+  AwsBootstrapRoleAccountArn: 'arn:aws:iam::339713121445:role/omnistrate-bootstrap-role'
+  AzureSubscriptionId: '0fa05079-dd73-4b88-babc-05537817604a'
+  AzureTenantId: '4e6c839d-e141-462e-bc65-8cd863580351'
+services:
+  postgres:
+    image: postgres
+    ports:
+      - '5432:5432'
+    environment:
+      - SECURITY_CONTEXT_USER_ID=999
+      - SECURITY_CONTEXT_GROUP_ID=999
+      - POSTGRES_USER=username
+      - POSTGRES_PASSWORD=password
+      - PGDATA=/var/lib/postgresql/data/dbdata
+    configs:
+      - source: otel-config
+        target: /mnt/otel-config.yaml
+    volumes:
+      - ./data:/var/lib/postgresql/data
+    x-omnistrate-capabilities:
+      serviceAccountPolicies:
+        aws:
+          - CLOUDWATCH
+      sidecars:
+        otel:
+          imageNameWithTag: "otel/opentelemetry-collector-contrib:0.116.1"
+          command:
+            - "/otelcol-contrib"
+            - "--config"
+            - "/mnt/otel-config.yaml"
+          resourceLimits:
+            cpu: "250m"
+            memory: "256Mi"
+          securityContext:
+            runAsUser: 10001
+            runAsGroup: 0
+            runAsNonRoot: true
+            capabilities:
+              add:
+              - SYS_RESOURCE
+
+configs:
+  otel-config:
+    name: otel-config
+    file: ./resources/otel-config.yaml

@@ -1,0 +1,81 @@
+version: "3.9"
+
+services:
+  levoai-rabbitmq:
+    image: 'rabbitmq:3.10.5-management'
+    container_name: levoai-rabbitmq
+    restart: always
+    healthcheck:
+      test: rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_local_alarms
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    environment:
+      RABBITMQ_DEFAULT_USER: levoai
+      RABBITMQ_DEFAULT_PASS: levoailevoai
+      # send logs to stdout, ref: https://www.rabbitmq.com/logging.html#log-file-location
+      RABBITMQ_LOGS: '-'
+    x-omnistrate-mode-internal: true
+
+  levoai-satellite:
+    image: 'docker.io/omnistrate/levosatellite:latest'
+    container_name: levoai-satellite
+    restart: always
+    ports:
+      - '9999:9999'
+    environment:
+      LEVOAI_DEBUG_ENABLED: false
+      LEVOAI_DEBUG_PORT: 12345
+      LEVOAI_DEBUG_SERVER_HOST: host.docker.internal
+      LEVOAI_MODE: docker-compose
+      LEVOAI_LOG_LEVEL: INFO
+      LEVOAI_AUTH_KEY: $external.var.levoaiAuthKey
+    depends_on:
+      levoai-rabbitmq:
+        condition: service_healthy
+    x-omnistrate-mode-internal: true
+
+  levoai-tagger:
+    image: 'docker.io/omnistrate/levotagger:latest'
+    container_name: levoai-tagger
+    restart: always
+    environment:
+      LEVOAI_DEBUG_ENABLED: false
+      LEVOAI_DEBUG_PORT: 1234
+      LEVOAI_MODE: docker-compose
+      LEVOAI_LOG_LEVEL: INFO
+      LEVOAI_DEBUG_SERVER_HOST: host.docker.internal
+      PI_DETECTOR_DATA_DIR: /opt/levoai/datasets/
+      LEVOAI_AUTH_KEY: $external.var.levoaiAuthKey
+    depends_on:
+      levoai-rabbitmq:
+        condition: service_healthy
+    x-omnistrate-mode-internal: true
+
+  levoai-collector:
+    image: 'levoai/collector:latest'
+    container_name: levoai-collector
+    restart: always
+    environment:
+      LEVOAI_AUTH_KEY: YOUR_KEY_HERE
+    ports:
+      - '4317:4317'
+    depends_on:
+      - levoai-satellite
+      - levoai-ion
+      - levoai-tagger
+
+  levoai-ion:
+    image: 'levoai/ion:latest'
+    container_name: levoai-ion
+    restart: always
+    environment:
+      LEVOAI_AUTH_KEY: $external.var.levoaiAuthKey
+    expose:
+    - '8000'
+    x-omnistrate-mode-internal: true
+    # volumes:
+    # - ./path/to/rules:/etc/ion/rules/custom

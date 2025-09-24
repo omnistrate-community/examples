@@ -1,0 +1,56 @@
+version: '3.9'
+x-customer-integrations:
+  licensing: 
+    licenseExpirationInDays: 7
+    productPlanUniqueIdentifier: 'PRODUCT-DEV-SKU'
+    
+x-omnistrate-load-balancer:
+  https:
+    - name: frontend
+      description: L7 Load Balancer for Web
+      paths:
+        - associatedResourceKey: web
+          path: /
+          backendPort: 8080
+
+services:
+  web:
+    image: ghcr.io/omnistrate-community/licensing-example-go:dev
+    ports:
+      - '8080:8080'
+    environment:
+      - SECURITY_CONTEXT_USER_ID=2000
+      - SECURITY_CONTEXT_GROUP_ID=1000
+    # not related to licensing, but to validate the API params
+    x-omnistrate-api-params:
+      - key: param1
+        description: param1
+        name: param1
+        type: String
+        modifiable: true
+        export: true
+        required: false
+        defaultValue: ''
+      - key: param2
+        description: param2
+        name: param2
+        type: String
+        modifiable: true
+        export: true
+        required: false
+        defaultValue: 
+      - key: param3
+        description: param3
+        name: param3
+        type: String
+        modifiable: true
+        export: true
+        required: false
+    x-omnistrate-mode-internal: true
+    
+  Cluster:
+    image: omnistrate/noop
+    depends_on:
+      - web
+    x-omnistrate-mode-internal: false
+

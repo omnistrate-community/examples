@@ -1,0 +1,64 @@
+version: "3.9"
+
+x-omnistrate-integrations:
+  - omnistrateLogging
+  - omnistrateMetrics
+
+services:
+  ClickHouse:
+    image: clickhouse/clickhouse-server:latest
+    x-omnistrate-api-params:
+      - key: instanceType
+        description: Instance Type
+        name: Instance Type
+        type: String
+        modifiable: true
+        required: true
+        export: true
+      - key: password
+        description: Default ClickHouse password
+        name: Password
+        type: Password
+        modifiable: true
+        required: true
+        export: false
+        defaultValue: a_secure_password
+      - key: username
+        description: Default ClickHouse username
+        name: Username
+        type: String
+        modifiable: true
+        required: true
+        export: true
+        defaultValue: root
+    environment:
+      CLICKHOUSE_USER: $var.username
+      CLICKHOUSE_PASSWORD: $var.password
+    x-omnistrate-compute:
+      instanceTypes:
+        - apiParam: instanceType
+          cloudProvider: aws
+        - apiParam: instanceType
+          cloudProvider: gcp
+        - apiParam: instanceType
+          cloudProvider: azure
+    volumes:
+      - source: ./data
+        target: /var/lib/clickhouse
+        type: bind
+        x-omnistrate-storage:
+          aws:
+            instanceStorageType: AWS::EBS_GP3
+            instanceStorageSizeGi: 10
+            instanceStorageIOPS: 3000
+            instanceStorageThroughputMiBps: 125
+          gcp:
+            instanceStorageType: GCP::PD_BALANCED
+            instanceStorageSizeGi: 10
+          azure:
+            instanceStorageType: AZURE::PREMIUM_SSD
+            instanceStorageSizeGi: 10
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+      - "9009:9009"
