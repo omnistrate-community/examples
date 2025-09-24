@@ -2,14 +2,14 @@
 
 This example shows how to deploy a Trino SaaS in your customers account using BYOC mode.
 
-[![Watch the video](../../images/trino-demo-screenshot.png)](https://www.youtube.com/watch?v=MRSHxL11MCY)
+[![Watch the video](images/trino-demo-screenshot.png)](https://www.youtube.com/watch?v=MRSHxL11MCY)
 
 ## Trino Architecture
 
 Trino is an open source distributed SQL query engine for big data analytics, for running interactive analytic queries against data sources of all sizes ranging from gigabytes to petabytes.
 Here's a diagram of the Trino architecture we will be deploying:
 
-![Trino Architecture](../../images/trino-architecture.png)
+![Trino Architecture](images/trino-architecture.png)
 
 ## Getting started via compose spec
 

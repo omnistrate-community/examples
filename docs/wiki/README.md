@@ -2,7 +2,7 @@
 
 This example shows how to deploy an Outline Wiki SaaS in your account, it's an open-source alternative for software like Confluence, check the project [on GitHub](https://github.com/outline/outline).
 
-[![Watch the video](../../images/outlinewiki-demo-screenshot.png)](https://www.loom.com/share/b24f55e4f2724694ab6483ef9130b6a6)
+[![Watch the video](images/outlinewiki-demo-screenshot.png)](https://www.loom.com/share/b24f55e4f2724694ab6483ef9130b6a6)
 
 ## Getting started via compose spec
 

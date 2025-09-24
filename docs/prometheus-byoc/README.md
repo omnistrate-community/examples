@@ -2,7 +2,7 @@
 
 This example shows how to deploy a Prometheus SaaS in your customers account using BYOC mode.
 
-[![Watch the video](../../images/prometheus-demo-screenshot.png)](https://www.youtube.com/watch?v=4XG1oGdb-0k&t=747s&ab_channel=Omnistrate)
+[![Watch the video](images/prometheus-demo-screenshot.png)](https://www.youtube.com/watch?v=4XG1oGdb-0k&t=747s&ab_channel=Omnistrate)
 
 ## Getting started via compose spec
 

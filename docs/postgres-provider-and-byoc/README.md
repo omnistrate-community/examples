@@ -296,7 +296,7 @@ You can also set it via our GUI when defining your service, by selecting the Dep
 Deploying your service in your customer account, can be achieved by enabling the BYOC mode.
 In this case, your provider account will act as an intermediary account, used to connect to your customer account.
 
-[![Watch the video](../../images/byoc-access.png)](https://www.youtube.com/watch?v=eLehADgm1FA)
+[![Watch the video](images/byoc-access.png)](https://www.youtube.com/watch?v=eLehADgm1FA)
 
 ```yaml
 version: '3.9'
