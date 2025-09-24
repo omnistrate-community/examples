@@ -1,6 +1,6 @@
 # Examples
 
-This section contains practical examples demonstrating how to build various types of SaaS applications using Omnistrate. Each example provides step-by-step guidance, complete configuration files, and best practices for different use cases.
+This folder contains practical examples demonstrating how to build various types of SaaS applications using Omnistrate. Each example provides step-by-step guidance, complete configuration files, and best practices for different use cases.
 
 ## Database Examples
 
@@ -72,4 +72,4 @@ Build a wiki SaaS using Outline, an open-source alternative to Confluence for te
 4. **Deploy and test** your SaaS application
 5. **Iterate and enhance** based on user feedback
 
-For more detailed information about building SaaS applications, see our [Build Guide](../build-guides/api-params.md) section.
+For more detailed information about building SaaS applications, see our [documentation](https://docs.omnistrate.com) section.
