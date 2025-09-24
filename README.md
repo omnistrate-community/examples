@@ -1,4 +1,4 @@
-# Omnistrate Community Examples
+# Omnistrate Examples
 
 This repository contains comprehensive examples and documentation for building SaaS applications using the Omnistrate platform. It provides ready-to-use configurations, detailed guides, and best practices for deploying various types of services as Software-as-a-Service offerings.
 
