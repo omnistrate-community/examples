@@ -1,15 +1,3 @@
----
-tags:
-  - example
-  - database
-  - postgresql
-  - vector
-  - serverless
-  - compose
-  - replicas
----
-
-<!-- TODO: MOVE TO GITHUB REPO -->
 # Vector database example using PostgreSQL
 
 In this example exercise, we will build PostgreSQL SaaS with pgvector extension. Let's start simple and we will extend the offering incrementally:
