@@ -31,7 +31,7 @@ x-internal-integrations:
       azure: OmnistrateE2ETests/NewRelicAPIKey # Vault in "Dev Dataplane - Service Provider Hosted" subscription
 services:
   postgres:
-    image: postgres
+    image: postgres:17
     ports:
       - '5432:5432'
     environment:
