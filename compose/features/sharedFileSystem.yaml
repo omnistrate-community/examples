@@ -107,3 +107,5 @@ volumes:
     driver_opts:
       efsThroughputMode: elastic
       efsPerformanceMode: generalPurpose
+      filestoreCapacity: "1TB"
+      filestoreTier: "BASIC_SSD"
