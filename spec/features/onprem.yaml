@@ -1,0 +1,155 @@
+# yaml-language-server: $schema=https://api.omnistrate.cloud/2022-09-01-00/schema/service-spec-schema.json
+# yaml-language-server: $schema=https://api.omnistrate.cloud/2022-09-01-00/schema/system-parameters-schema.json
+
+name: licensing-installer
+deployment:
+  requirements:
+    k8sVersion: ">=1.30.0"
+  onPremDeployment:
+    AwsAccountId: '339713121445'
+    AwsBootstrapRoleAccountArn: 'arn:aws:iam::339713121445:role/omnistrate-bootstrap-role'
+  onPremInstallerTools:
+    helperUserScript: |
+      #!/bin/bash
+      log_error() {
+        echo "Error: $1" > /tmp/error.log
+      }
+
+services:
+  - name: DockerIO
+    internal: true
+    disable: "false"
+    containerImagesRegistryCopyConfiguration:
+       pullSource:
+         registryURL: "docker.io"
+         repositoryName: "library"
+       pushTarget:
+         registryURL: "docker.io"
+         repositoryName: "omnistrate"
+       images:
+         - imageName: "redis"
+           imageTag: "latest"
+         - imageName: "nginx"
+           imageTag: "latest"
+         - imageName: "postgres"
+           imageTag: "latest"
+
+  - name: Omnistrate Docker
+    internal: true
+    apiParameters:
+      - name: skipCustomImageRegistry
+        key: skipCustomImageRegistry
+        description: Skip a custom image registry for DataRobot images
+        type: Boolean
+        required: false
+        export: true
+        defaultValue: 'true'
+        modifiable: false
+      - name: privateRegistryUrl
+        key: privateRegistryUrl
+        description: "private"
+        type: String
+        required: false
+        export: true
+        defaultValue: "docker.io"
+        modifiable: true
+      - name: privateRegistryRepoName
+        key: privateRegistryRepoName
+        description: "private"
+        type: String
+        required: false
+        export: true
+        defaultValue: "omnistrate"
+        modifiable: true
+    disable: "{{ $var.skipCustomImageRegistry }}"
+    containerImagesRegistryCopyConfiguration:
+      pullSource:
+        registryURL: "ghcr.io"
+        repositoryName: "omnistrate-community"
+      pushTarget:
+        registryURL: "{{ $var.privateRegistryUrl }}"
+        repositoryName: "{{ $var.privateRegistryRepoName }}"
+
+  - name: Licensing Installer
+    dependsOn:
+      - Omnistrate Docker
+      - DockerIO
+    apiParameters:
+      - name: skipCustomImageRegistry
+        key: skipCustomImageRegistry
+        description: Use a custom image registry for DataRobot images
+        type: Boolean
+        required: false
+        export: true
+        defaultValue: 'false'
+        modifiable: false
+        parameterDependencyMap:
+          Omnistrate Docker: skipCustomImageRegistry
+      - name: privateRegistryUrl
+        key: privateRegistryUrl
+        description: "private"
+        type: String
+        required: false
+        defaultValue: "docker.io"
+        export: true
+        modifiable: true
+        parameterDependencyMap:
+          Omnistrate Docker: privateRegistryUrl
+      - name: privateRegistryRepoName
+        key: privateRegistryRepoName
+        description: "private"
+        type: String
+        required: false
+        defaultValue: "omnistrate"
+        export: true
+        modifiable: true
+        parameterDependencyMap:
+          Omnistrate Docker: privateRegistryRepoName
+    actionHooks:
+      - scope: CLUSTER
+        type: VALIDATE
+        commandTemplate: "echo 'Validate hook'"
+      - scope: CLUSTER
+        type: PRE_INSTALL
+        commandTemplate: "echo 'Pre-install hook'"
+      - scope: CLUSTER
+        type: POST_INSTALL
+        commandTemplate: "echo 'Post-install hook'"
+      - scope: CLUSTER
+        type: BACKUP
+        commandTemplate: "echo 'Backup hook'"
+    helmChartConfiguration:
+      chartName: licensing-example-java-chart
+      chartVersion: 0.1.14
+      chartRepoName: omnistrate-community
+      chartRepoURL: oci://ghcr.io/omnistrate-community
+      autoDiscoverImagesTag: "omnistrate.com/images"
+      releaseName: "licensing-example"
+      namespace: "licensing-example"
+      chartValues:
+        replicaCount: 1
+        image:
+          repository: ghcr.io/omnistrate-community/licensing-example-java
+          pullPolicy: IfNotPresent
+          tag: 0.1.91
+        subscriptionSecret:
+          enabled: true
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
+                    - key: omnistrate.com/managed-by
+                      operator: In
+                      values:
+                        - omnistrate
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchExpressions:
+                    - key: omnistrate.com/schedule-mode
+                      operator: In
+                      values:
+                        - exclusive
+                namespaceSelector: {}
+                topologyKey: kubernetes.io/hostname
