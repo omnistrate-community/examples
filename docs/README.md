@@ -64,6 +64,12 @@ Build a wiki SaaS using Outline, an open-source alternative to Confluence for te
 
 ### [Integrate Billing with Marketplace](integrate-billing-with-marketplace/README.md)
 
+## Deployment Models
+
+### [On-Premises Deployment](onprem/README.md)
+
+Learn how to configure and deploy services in customer-managed on-premises environments. This guide covers service specifications, container image registry configuration, lifecycle hooks, and deployment requirements for air-gapped and private cloud deployments.
+
 ## Next Steps
 
 1. **Choose an example** that matches your use case
