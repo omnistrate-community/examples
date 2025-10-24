@@ -1,0 +1,152 @@
+# Omnistrate FDE agent authored specification for Flowise deployment
+version: '3.1'
+
+x-omnistrate-service-plan:
+  name: 'Flowise'
+  deployment:
+    hostedDeployment:
+      awsAccountId: '621321719562'
+      awsBootstrapRoleAccountArn: 'arn:aws:iam::621321719562:role/omnistrate-bootstrap-role'
+      gcpProjectId: 'omnistrate-test-dp'
+      gcpProjectNumber: '521321619562'
+      gcpServiceAccountEmail: 'omnistrate-bootstrap@omnistrate-demo.iam.gserviceaccount.com'
+
+x-omnistrate-load-balancer:
+  https:
+    - name: Flowise
+      description: HTTPS Load Balancer for Flowise
+      paths:
+        - associatedResourceKey: flowise
+          path: /
+          backendPort: 3000
+
+services:
+  flowise-app:
+    image: omnistrate/noop
+    x-omnistrate-mode-internal: false
+    depends_on:
+      - redis
+      - flowise
+      - flowise-worker
+
+  redis:
+    image: redis:alpine
+    x-omnistrate-mode-internal: true
+    ports:
+      - '6379:6379'
+    volumes:
+      - type: volume
+        source: redis_data
+        target: /data
+        x-omnistrate-storage:
+          aws:
+            instanceStorageType: AWS::EBS_GP3
+            instanceStorageSizeGi: 20
+          gcp:
+            instanceStorageType: GCP::PD_BALANCED
+            instanceStorageSizeGi: 20
+    x-omnistrate-compute:
+      replicaCount: 1
+      instanceTypes:
+        - cloudProvider: aws
+          name: c5.xlarge
+        - cloudProvider: gcp
+          name: n2-standard-4
+    networks:
+      - flowise-net
+
+  flowise:
+    image: flowiseai/flowise:latest
+    x-omnistrate-mode-internal: true
+    privileged: true
+    depends_on:
+      - redis
+    ports:
+      - '3000:3000'
+    environment:
+      - PORT=3000
+      - DATABASE_PATH=/root/.flowise
+      - MODE=queue
+      - QUEUE_NAME=flowise-queue
+      - REDIS_URL=redis://redis:6379
+      - ENABLE_BULLMQ_DASHBOARD=true
+    volumes:
+      - type: volume
+        source: flowise_data
+        target: /root/.flowise
+        x-omnistrate-storage:
+          aws:
+            instanceStorageType: AWS::EBS_GP3
+            instanceStorageSizeGi: 50
+          gcp:
+            instanceStorageType: GCP::PD_BALANCED
+            instanceStorageSizeGi: 50
+    x-omnistrate-compute:
+      replicaCount: 1
+      instanceTypes:
+        - cloudProvider: aws
+          name: c5.xlarge
+        - cloudProvider: gcp
+          name: n2-standard-4
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/api/v1/ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    entrypoint: /bin/sh -c "sleep 3; flowise start"
+    networks:
+      - flowise-net
+
+  flowise-worker:
+    image: flowiseai/flowise-worker:latest
+    x-omnistrate-mode-internal: true
+    privileged: true
+    depends_on:
+      - redis
+      - flowise
+    environment:
+      - WORKER_PORT=5566
+      - DATABASE_PATH=/root/.flowise
+      - MODE=queue
+      - QUEUE_NAME=flowise-queue
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - type: volume
+        source: worker_data
+        target: /root/.flowise
+        x-omnistrate-storage:
+          aws:
+            instanceStorageType: AWS::EBS_GP3
+            instanceStorageSizeGi: 50
+          gcp:
+            instanceStorageType: GCP::PD_BALANCED
+            instanceStorageSizeGi: 50
+    x-omnistrate-compute:
+      replicaCount: 1
+      instanceTypes:
+        - cloudProvider: aws
+          name: c5.xlarge
+        - cloudProvider: gcp
+          name: n2-standard-4
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:5566/healthz']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    entrypoint: /bin/sh -c "node /app/healthcheck/healthcheck.js & sleep 5 && pnpm run start-worker"
+    networks:
+      - flowise-net
+
+volumes:
+  redis_data:
+    driver: local
+  flowise_data:
+    driver: local
+  worker_data:
+    driver: local
+
+networks:
+  flowise-net:
+    driver: bridge
