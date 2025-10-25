@@ -1,0 +1,17 @@
+resources:
+  - pg.yaml
+  - pgpv.yaml
+  - pgpvc.yaml
+
+commonLabels:
+  environment: dev
+
+namespace: {{  $sys.id }}
+
+configMapGenerator:
+  - name: pg-config
+    literals:
+      - defaultPassword=admin
+      - pgDefaultUsername={{ $var.username }}
+      - pgDefaultPassword={{ $var.password }}
+      - s3BucketUpdate={{ $terraformChild.out.bucket_url_update.arn }}
