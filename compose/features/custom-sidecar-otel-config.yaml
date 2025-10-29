@@ -1,0 +1,27 @@
+receivers:
+  filelog:
+    include:
+      - /var/log/pods/*/service/*.log
+
+exporters:
+  awscloudwatchlogs:
+    log_group_name: CustomOtelSidecarE2ETest-{{ $sys.id }}
+    log_stream_name: omni-e2e-{{ $sys.id }}
+    log_retention: 30
+
+processors:
+  attributes:
+    actions:
+      - key: instance
+        value: {{ $sys.id }}
+        action: insert
+  batch:
+    send_batch_size: 100
+    timeout: 10s
+
+service:
+  pipelines:
+    logs:
+      receivers: [filelog]
+      processors: [batch, attributes]
+      exporters: [awscloudwatchlogs]
