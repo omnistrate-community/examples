@@ -254,7 +254,7 @@ To simplify setup, we’ve created a recipe that includes:
 Start by forking the [Clazar Export Recipe](https://github.com/omnistrate-community/usage-export-clazar-recipe) repository. Then, clone it locally and run the following command:
 
 ```bash
-omctl build-from-repo --product-name "Clazar Exporter"
+omctl build-from-repo --product-name "Clazar Exporter" --skip-environment-promotion
 ```
 
 This command:
