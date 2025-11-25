@@ -82,7 +82,7 @@ services:
     apiParameters:
       - name: skipCustomImageRegistry
         key: skipCustomImageRegistry
-        description: Skip a custom image registry for DataRobot images
+        description: Skip a custom image registry for images
         type: Boolean
         required: false
         export: true
