@@ -120,7 +120,7 @@ services:
     apiParameters:
       - name: skipCustomImageRegistry
         key: skipCustomImageRegistry
-        description: Use a custom image registry for DataRobot images
+        description: Use a custom image registry for images
         type: Boolean
         required: false
         export: true
@@ -227,7 +227,7 @@ Parameters allow users to customize the deployment:
 apiParameters:
   - name: skipCustomImageRegistry
     key: skipCustomImageRegistry
-    description: Skip a custom image registry for DataRobot images
+    description: Skip a custom image registry for images
     type: Boolean                   # Data type: Boolean, String, Integer, etc.
     required: false
     export: true                    # Export to other services
