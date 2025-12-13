@@ -10,9 +10,13 @@ In the example below, we are creating ```redpanda``` as a Resource, configuring 
 ```yaml
 version: '3.9'
 
-x-omnistrate-byoa:
-  awsAccountId: 'your-aws-account-id'
-  awsBootstrapRoleAccountArn: 'arn:aws:iam::your-aws-account-id:role/omnistrate-bootstrap-role'
+x-omnistrate-service-plan:
+  name: "Redpanda"
+  tenancyType: "OMNISTRATE_DEDICATED_TENANCY"
+  deployment:
+    byoaDeployment:
+      awsAccountId: '<AWS_ACCOUNT_ID>'
+      awsBootstrapRoleAccountArn: 'arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-bootstrap-role'
 
 x-customer-integrations:
   logs: 

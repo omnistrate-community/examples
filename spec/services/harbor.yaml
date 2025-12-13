@@ -3,8 +3,8 @@
 name: Harbor SaaS # Service Plan Name
 deployment:
   hostedDeployment:
-    AwsAccountId: "xxxxxxxxx"
-    AWSBootstrapRoleAccountArn: arn:aws:iam::xxxxxxxxx:role/omnistrate-bootstrap-role
+    awsAccountId: '<AWS_ACCOUNT_ID>'
+    awsBootstrapRoleAccountArn: 'arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-bootstrap-role'
 
 services:
   - name: Harbor

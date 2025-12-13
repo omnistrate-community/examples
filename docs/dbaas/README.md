@@ -53,13 +53,13 @@ x-omnistrate-service-plan:
   tenancyType: 'OMNISTRATE_DEDICATED_TENANCY'
   deployment:
     hostedDeployment:
-      awsAccountId: 'xxxxxxxxxxx'
-      awsBootstrapRoleAccountArn: 'arn:aws:iam::xxxxxxxxxxx:role/omnistrate-bootstrap-role'
-      gcpProjectId: 'test-account'
-      gcpProjectNumber: 'xxxxxxxxxxx3'
-      gcpServiceAccountEmail: 'bootstrap.service@gcp.test.iam'
-      azureSubscriptionId: 'xxxxxxxx-xxxx-xxx-xxxx-xxxxxxxxxx'
-      azureTenantId: 'xxxxxxxx-xxxx-xxx-xxxx-xxxxxxxxxx'
+      awsAccountId: '<AWS_ACCOUNT_ID>'
+      awsBootstrapRoleAccountArn: 'arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-bootstrap-role'
+      gcpProjectId: '<GCP_PROJECT_ID>'
+      gcpProjectNumber: '<GCP_PROJECT_NUMBER>'
+      gcpServiceAccountEmail: '<GCP_SERVICE_ACCOUNT_EMAIL>'
+      azureSubscriptionId: '<AZURE_SUBSCRIPTION_ID>'
+      azureTenantId: '<AZURE_TENANT_ID>'
 ```
 
 !!! note
@@ -93,13 +93,13 @@ x-omnistrate-service-plan:
   tenancyType: 'OMNISTRATE_DEDICATED_TENANCY'
   deployment:
     hostedDeployment:
-      awsAccountId: 'xxxxxxxxxxx'
-      awsBootstrapRoleAccountArn: 'arn:aws:iam::xxxxxxxxxxx:role/omnistrate-bootstrap-role'
-      gcpProjectId: 'test-account'
-      gcpProjectNumber: 'xxxxxxxxxxx3'
-      gcpServiceAccountEmail: 'bootstrap.service@gcp.test.iam'
-      azureSubscriptionId: 'xxxxxxxx-xxxx-xxx-xxxx-xxxxxxxxxx'
-      azureTenantId: 'xxxxxxxx-xxxx-xxx-xxxx-xxxxxxxxxx'
+      awsAccountId: '<AWS_ACCOUNT_ID>'
+      awsBootstrapRoleAccountArn: 'arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-bootstrap-role'
+      gcpProjectId: '<GCP_PROJECT_ID>'
+      gcpProjectNumber: '<GCP_PROJECT_NUMBER>'
+      gcpServiceAccountEmail: '<GCP_SERVICE_ACCOUNT_EMAIL>'
+      azureSubscriptionId: '<AZURE_SUBSCRIPTION_ID>'
+      azureTenantId: '<AZURE_TENANT_ID>'
 
 x-customer-integrations:
   logs: 
@@ -227,13 +227,13 @@ x-omnistrate-service-plan:
   tenancyType: 'OMNISTRATE_DEDICATED_TENANCY'
   deployment:
     hostedDeployment:
-      awsAccountId: 'xxxxxxxxxxx'
-      awsBootstrapRoleAccountArn: 'arn:aws:iam::xxxxxxxxxxx:role/omnistrate-bootstrap-role'
-      gcpProjectId: 'test-account'
-      gcpProjectNumber: 'xxxxxxxxxxx3'
-      gcpServiceAccountEmail: 'bootstrap.service@gcp.test.iam'
-      azureSubscriptionId: 'xxxxxxxx-xxxx-xxx-xxxx-xxxxxxxxxx'
-      azureTenantId: 'xxxxxxxx-xxxx-xxx-xxxx-xxxxxxxxxx'
+      awsAccountId: '<AWS_ACCOUNT_ID>'
+      awsBootstrapRoleAccountArn: 'arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-bootstrap-role'
+      gcpProjectId: '<GCP_PROJECT_ID>'
+      gcpProjectNumber: '<GCP_PROJECT_NUMBER>'
+      gcpServiceAccountEmail: '<GCP_SERVICE_ACCOUNT_EMAIL>'
+      azureSubscriptionId: '<AZURE_SUBSCRIPTION_ID>'
+      azureTenantId: '<AZURE_TENANT_ID>'
 
 x-customer-integrations:
   logs: 

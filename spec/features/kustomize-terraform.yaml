@@ -1,13 +1,13 @@
 name: Multiple Resources
 deployment:
   hostedDeployment:
-    AwsAccountId: 'xxxxxxxxxx'
-    AwsBootstrapRoleAccountArn: 'arn:aws:iam::xxxxxxxxxx:role/omnistrate-bootstrap-role'
-    GcpProjectId: 'xxxxxxxxxx'
-    GcpProjectNumber: 'xxxxxxxxxx'
-    GcpServiceAccountEmail: 'bootstrap@xxxxxxxxxx.iam.gserviceaccount.com'
-    AzureSubscriptionId: 'xxxxxxxxxx'
-    AzureTenantId: 'xxxxxxxxxx'
+    awsAccountId: '<AWS_ACCOUNT_ID>'
+    awsBootstrapRoleAccountArn: 'arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-bootstrap-role'
+    gcpProjectId: '<GCP_PROJECT_ID>'
+    gcpProjectNumber: '<GCP_PROJECT_NUMBER>'
+    gcpServiceAccountEmail: '<GCP_SERVICE_ACCOUNT_EMAIL>'
+    azureSubscriptionId: '<AZURE_SUBSCRIPTION_ID>'
+    azureTenantId: '<AZURE_TENANT_ID>'
 features:
   INTERNAL:
     logs: # Omnistrate native
