@@ -6,8 +6,8 @@ deployment:
   requirements:
     k8sVersion: ">=1.30.0"
   onPremDeployment:
-    AwsAccountId: '339713121445'
-    AwsBootstrapRoleAccountArn: 'arn:aws:iam::339713121445:role/omnistrate-bootstrap-role'
+    awsAccountId: '<AWS_ACCOUNT_ID>'
+    awsBootstrapRoleAccountArn: 'arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-bootstrap-role'
   onPremInstallerTools:
     helperUserScript: |
       #!/bin/bash
@@ -21,10 +21,10 @@ services:
     disable: "false"
     containerImagesRegistryCopyConfiguration:
        pullSource:
-         registryURL: "docker.io"
+         registryUrl: "docker.io"
          repositoryName: "library"
        pushTarget:
-         registryURL: "docker.io"
+         registryUrl: "docker.io"
          repositoryName: "omnistrate"
        images:
          - imageName: "redis"
@@ -64,10 +64,10 @@ services:
     disable: "{{ $var.skipCustomImageRegistry }}"
     containerImagesRegistryCopyConfiguration:
       pullSource:
-        registryURL: "ghcr.io"
+        registryUrl: "ghcr.io"
         repositoryName: "omnistrate-community"
       pushTarget:
-        registryURL: "{{ $var.privateRegistryUrl }}"
+        registryUrl: "{{ $var.privateRegistryUrl }}"
         repositoryName: "{{ $var.privateRegistryRepoName }}"
 
   - name: Licensing Installer

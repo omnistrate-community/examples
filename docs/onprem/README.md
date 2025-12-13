@@ -13,8 +13,8 @@ The `onPremDeployment` section contains AWS-specific bootstrap configuration use
 ```yaml
 deployment:
   onPremDeployment:
-    AwsAccountId: '339713121445'  # AWS account ID where installer and artifacts are stored
-    AwsBootstrapRoleAccountArn: 'arn:aws:iam::339713121445:role/omnistrate-bootstrap-role'  # IAM role for accessing stored artifacts
+    awsAccountId: '<AWS_ACCOUNT_ID>'  # AWS account ID where installer and artifacts are stored
+    awsBootstrapRoleAccountArn: 'arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-bootstrap-role'  # IAM role for accessing stored artifacts
 ```
 
 This configuration specifies the AWS account and IAM role used to store generated installer packages and deployment artifacts. When you build an on-premises deployment, Omnistrate generates installer files and stores them in the specified AWS account.
@@ -49,8 +49,8 @@ Here's a complete example showing how to define a complex onprem service:
 name: licensing-installer
 deployment:
   onPremDeployment:
-    AwsAccountId: '339713121445'
-    AwsBootstrapRoleAccountArn: 'arn:aws:iam::339713121445:role/omnistrate-bootstrap-role'
+    awsAccountId: '<AWS_ACCOUNT_ID>'
+    awsBootstrapRoleAccountArn: 'arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-bootstrap-role'
   onPremInstallerTools:
     helperUserScript: |
       #!/bin/bash

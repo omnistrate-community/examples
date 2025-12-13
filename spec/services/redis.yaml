@@ -1,10 +1,10 @@
 name: Redis Server # Service Plan Name
 deployment:
   x-omnistrate-byoa: # Customer-Account
-    AwsAccountId: 'xxxxxxxxxx'
-    AwsBootstrapRoleAccountArn: 'arn:aws:iam::xxxxxxxxxx:role/omnistrate-bootstrap-role'
-    AzureSubscriptionId: 'xxxxxxxxxx'
-    AzureTenantId: 'xxxxxxxxxx'
+    awsAccountId: '<AWS_ACCOUNT_ID>'
+    awsBootstrapRoleAccountArn: 'arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-bootstrap-role'
+    azureSubscriptionId: '<AZURE_SUBSCRIPTION_ID>'
+    azureTenantId: '<AZURE_TENANT_ID>'
 features:
   INTERNAL:
     logs: # Omnistrate native

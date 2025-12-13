@@ -1,12 +1,16 @@
 version: '3.9'
-x-omnistrate-my-account:
-  GcpProjectId: 'omnistrate-dataplane-host-dev'
-  GcpProjectNumber: '61114262792'
-  GcpServiceAccountEmail: 'bootstrap@omnistrate-dataplane-host-dev.iam.gserviceaccount.com'
-  AwsAccountId: '339713121445'
-  AwsBootstrapRoleAccountArn: 'arn:aws:iam::339713121445:role/omnistrate-bootstrap-role'
-  AzureSubscriptionId: '0fa05079-dd73-4b88-babc-05537817604a'
-  AzureTenantId: '4e6c839d-e141-462e-bc65-8cd863580351'
+x-omnistrate-service-plan:
+  name: "PG with custom networks"
+  tenancyType: "OMNISTRATE_DEDICATED_TENANCY"
+  deployment:
+    hostedDeployment:
+      awsAccountId: '<AWS_ACCOUNT_ID>'
+      awsBootstrapRoleAccountArn: 'arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-bootstrap-role'
+      gcpProjectId: '<GCP_PROJECT_ID>'
+      gcpProjectNumber: '<GCP_PROJECT_NUMBER>'
+      gcpServiceAccountEmail: '<GCP_SERVICE_ACCOUNT_EMAIL>'
+      azureSubscriptionId: '<AZURE_SUBSCRIPTION_ID>'
+      azureTenantId: '<AZURE_TENANT_ID>'
 services:
   reader:
     image: postgres:17

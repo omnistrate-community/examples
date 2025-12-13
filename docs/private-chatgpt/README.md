@@ -12,6 +12,18 @@ To get started via compose spec, provided below we have a sample that you can us
 
 ```yaml
 version: '3.9'
+x-omnistrate-service-plan:
+  name: 'Private GPT'
+  tenancyType: 'OMNISTRATE_DEDICATED_TENANCY'
+  deployment:
+    hostedDeployment:
+      awsAccountId: '<AWS_ACCOUNT_ID>'
+      awsBootstrapRoleAccountArn: 'arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-bootstrap-role'
+      gcpProjectId: '<GCP_PROJECT_ID>'
+      gcpProjectNumber: '<GCP_PROJECT_NUMBER>'
+      gcpServiceAccountEmail: '<GCP_SERVICE_ACCOUNT_EMAIL>'
+      azureSubscriptionId: '<AZURE_SUBSCRIPTION_ID>'
+      azureTenantId: '<AZURE_TENANT_ID>'
 services:
   private-gpt:
     x-omnistrate-compute:
@@ -134,9 +146,13 @@ Alternatively, to set up your host account via template, you can just add it in 
 
 ```yaml
 version: '3.9'
-x-omnistrate-byoa:
-  awsAccountId: 'your-aws-account-id'
-  awsBootstrapRoleAccountArn: 'arn:aws:iam::your-aws-account-id:role/omnistrate-bootstrap-role'
+x-omnistrate-service-plan:
+  name: "Private GPT"
+  tenancyType: "OMNISTRATE_DEDICATED_TENANCY"
+  deployment:
+    byoaDeployment:
+      awsAccountId: '<AWS_ACCOUNT_ID>'
+      awsBootstrapRoleAccountArn: 'arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-bootstrap-role'
 services:
   private-gpt:
     x-omnistrate-compute:
