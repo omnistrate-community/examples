@@ -85,6 +85,20 @@ services:
     network:
       ports:
         - 3306
+        - 10000-20000
+      namedPorts:
+        grpc-range: 9000-9100
+    endpointConfiguration:
+      cluster:
+        host: "$sys.network.externalClusterEndpoint"
+        ports:
+          - 3306
+        portExpressions:
+          - "{{ $func.randomminmax(10000, 20000, 42)}}"
+          - "{{ $func.randomport($sys.network.namedPorts['grpc-range'], 44) }}"
+        primary: true
+        networkingType: PUBLIC
+        disableMonitoring: false
     kustomizeConfiguration:
       kustomizePath: /kustomize
       gitConfiguration:
