@@ -20,6 +20,10 @@ Set up a MySQL cluster with master-replica architecture for high-performance dat
 
 Deploy and manage NoSQL database solutions with Omnistrate's platform capabilities.
 
+### [Qdrant Vector Database](qdrant/README.md)
+
+Build a Qdrant vector database SaaS with three distinct service plans: Free Tier (Multitenant), Dedicated Tier, and Enterprise Tier (BYOA). This example demonstrates how to configure different tenancy models, deployment options, and observability integrations for various customer segments.
+
 ### [PostgreSQL as a Hosted Solution and Bring your Own Cloud](postgres-provider-and-byoc/README.md)
 
 Compare different deployment models for PostgreSQL - provider-hosted vs bring-your-own-cloud (BYOC) approaches.
