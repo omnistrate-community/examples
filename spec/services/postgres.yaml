@@ -1,0 +1,97 @@
+name: Postgres Hosted
+deployment:
+  hostedDeployment:
+    awsAccountId: '<AWS_ACCOUNT_ID>'
+    awsBootstrapRoleAccountArn: 'arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-bootstrap-role'
+    gcpProjectId: '<GCP_PROJECT_ID>'
+    gcpProjectNumber: '<GCP_PROJECT_NUMBER>'
+    gcpServiceAccountEmail: '<GCP_SERVICE_ACCOUNT_EMAIL>'
+    azureSubscriptionId: '<AZURE_SUBSCRIPTION_ID>'
+    azureTenantId: '<AZURE_TENANT_ID>'
+
+services:
+  - name: Postgres Database
+    compute:
+      instanceTypes:
+        - apiParam: postgresInstanceType
+          cloudProvider: aws
+        - apiParam: postgresInstanceType
+          cloudProvider: gcp
+        - apiParam: postgresInstanceType
+          cloudProvider: azure
+    network:
+      namedPorts:
+        sqlport: 31000-32000
+    endpointConfiguration:
+      pgCluster:
+        host: "$sys.network.externalClusterEndpoint"
+        portExpressions:
+          - "{{ $func.randomport($sys.network.namedPorts.sqlport, $sys.deterministicSeedValue) }}"
+        primary: true
+        networkingType: PUBLIC
+        disableMonitoring: false
+    helmChartConfiguration:
+      chartName: postgresql
+      chartVersion: 16.7.27
+      chartRepoName: bitnamicharts
+      chartRepoURL: oci://registry-1.docker.io/bitnamicharts
+      chartValues:
+        global:
+          security:
+            allowInsecureImages: true
+        image:
+          registry: docker.io
+          repository: bitnamisecure/postgresql
+          tag: latest
+        auth:
+          database: postgres
+          username: postgres
+          password: password
+        primary:
+          service:
+            type: NodePort
+            nodePorts:
+              postgresql: $func.randomport($sys.network.namedPorts.sqlport, $sys.deterministicSeedValue)
+            annotations:
+              external-dns.alpha.kubernetes.io/hostname: $sys.network.externalClusterEndpoint
+          persistence:
+            enabled: false
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: omnistrate.com/managed-by
+                        operator: In
+                        values:
+                          - omnistrate
+                      - key: topology.kubernetes.io/region
+                        operator: In
+                        values:
+                          - $sys.deploymentCell.region
+                      - key: node.kubernetes.io/instance-type
+                        operator: In
+                        values:
+                          - $sys.compute.node.instanceType
+                      - key: omnistrate.com/resource
+                        operator: In
+                        values:
+                          - $sys.deployment.resourceID
+        readReplicas:
+          replicaCount: 0
+    apiParameters:
+      - key: postgresInstanceType
+        description: Postgres Instance Type
+        name: Postgres Instance Type
+        type: String
+        modifiable: true
+        required: false
+        export: true
+        defaultValue: "t4g.small"
