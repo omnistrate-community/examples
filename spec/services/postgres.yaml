@@ -21,7 +21,7 @@ services:
           cloudProvider: azure
     network:
       namedPorts:
-        sqlport: 30100-30110
+        sqlport: 31000-32000
     endpointConfiguration:
       pgCluster:
         host: "$sys.network.externalClusterEndpoint"
