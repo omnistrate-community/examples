@@ -1,0 +1,74 @@
+version: '3.9'
+x-omnistrate-service-plan:
+  name: 'Enterprise Tier (BYOA)'
+  deployment:
+    byoaDeployment:
+      AwsAccountId: '<AWS_ACCOUNT_ID>'
+      AwsBootstrapRoleAccountArn: 'arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-bootstrap-role'
+# Enable built-in logging and metrics for your customers
+x-customer-integrations:
+  logs:
+  metrics:
+    additionalMetrics:
+      qdrant:
+        prometheusEndpoint: "http://localhost:6333/metrics"
+        metrics:
+          collections_total:
+          collections_vector_total:
+          grpc_responses_total:
+          rest_responses_total:
+  
+x-internal-integrations:
+  logs:
+    provider: native
+  metrics:
+    provider: native
+
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    working_dir: /qdrant/storage
+    # Omnistrate handles port mapping; 6333 is the REST API, 6334 is gRPC
+    ports:
+      - 6333:6333
+      - 6334:6334
+    expose:
+      - 6333
+      - 6334
+      - 6335
+    environment:
+      - QDRANT__STORAGE__STORAGE_PATH=/qdrant/storage/data
+      - QDRANT__STORAGE__SNAPSHOTS_PATH=/qdrant/storage/snapshots
+      # Use Omnistrate API params to let customers set their own API Key
+      - QDRANT__SERVICE__API_KEY=$var.apikey
+        
+    # Define storage parameters
+    volumes:
+      - source: ./qdrant_data
+        target: /qdrant/storage
+        type: bind
+        x-omnistrate-storage:
+          aws:
+            instanceStorageType: AWS::EBS_GP3
+            instanceStorageSizeGi: 10
+            instanceStorageIOPS: 3000
+            instanceStorageThroughputMiBps: 125
+          gcp:
+            instanceStorageType: GCP::PD_BALANCED
+            instanceStorageSizeGi: 10
+          azure:
+            instanceStorageType: AZURE::PREMIUM_SSD
+            instanceStorageSizeGi: 10
+    # Define how customers can configure the service via API/UI
+    x-omnistrate-api-params:
+      - key: apikey
+        name: API_KEY
+        description: "The API Key for securing your Qdrant instance"
+        required: true
+        type: String
+    x-omnistrate-capabilities:
+      httpReverseProxy:
+        targetPort: 6333
+      backupConfiguration:
+        backupRetentionInDays: 7
+        backupPeriodInHours: 2
