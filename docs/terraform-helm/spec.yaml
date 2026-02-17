@@ -1,0 +1,312 @@
+# yaml-language-server: $schema=https://api.omnistrate.cloud/2022-09-01-00/schema/service-spec-schema.json
+
+name: Agent Runtime Demo
+
+deployment:
+  hostedDeployment: 
+      AwsAccountId: '<AWS_ACCOUNT_ID>'
+      GcpProjectId: '<GCP_PROJECT_ID>'
+      GcpProjectNumber: '<GCP_PROJECT_NUMBER>'
+      GcpServiceAccountEmail: '<GCP_SERVICE_ACCOUNT_EMAIL>'
+
+features:
+  INTERNAL:
+    logs: # Omnistrate native logging
+  CUSTOMER:
+    logs: # Omnistrate native logging
+
+services:
+  # PostgreSQL Database Infrastructure
+  - name: tf-postgres
+    internal: true
+    terraformConfigurations:
+      configurationPerCloudProvider:
+        aws:
+          terraformPath: /terraform/aws/postgres
+          terraformExecutionIdentity: "arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-custom-terraform-execution-role"
+          gitConfiguration:
+            reference: refs/heads/main
+            repositoryUrl: https://github.com/<YOUR_REPO>.git
+            accessToken: <YOUR_GITHUB_PAT>
+        gcp:
+          terraformPath: /terraform/gcp/postgres
+          gitConfiguration:
+            reference: refs/heads/main
+            repositoryUrl: https://github.com/<YOUR_REPO>.git
+            accessToken: <YOUR_GITHUB_PAT>
+
+  # Redis Cache Infrastructure
+  - name: tf-redis
+    internal: true
+    terraformConfigurations:
+      configurationPerCloudProvider:
+        aws:
+          terraformPath: /terraform/aws/redis
+          terraformExecutionIdentity: "arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-custom-terraform-execution-role"
+          gitConfiguration:
+            reference: refs/heads/main
+            repositoryUrl: https://github.com/<YOUR_REPO>.git
+            accessToken: <YOUR_GITHUB_PAT>
+        gcp:
+          terraformPath: /terraform/gcp/redis
+          gitConfiguration:
+            reference: refs/heads/main
+            repositoryUrl: https://github.com/<YOUR_REPO>.git
+            accessToken: <YOUR_GITHUB_PAT>
+
+  # Agent Runtime Helm Chart - Main Service
+  - name: agent-runtime
+    internal: false
+    dependsOn:
+      - tf-postgres
+      - tf-redis
+    compute:
+      instanceTypes:
+        - cloudProvider: aws
+          name: t3.large
+        - cloudProvider: aws
+          name: t3.xlarge
+        - cloudProvider: gcp
+          name: n2-standard-2
+        - cloudProvider: gcp
+          name: n2-standard-4
+    network:
+      ports:
+        - 8000
+        - 443
+    
+    # API Parameters exposed to customers
+    apiParameters:
+      - key: instanceType
+        name: Instance Type
+        description: Compute instance type for the agent runtime
+        type: String
+        required: false
+        defaultValue: "t3.large"
+        modifiable: true
+        export: true
+
+      - key: replicaCount
+        name: Replica Count
+        description: Number of agent runtime replicas
+        type: Float64
+        required: false
+        defaultValue: "1"
+        modifiable: true
+        export: true
+
+      - key: agentName
+        name: Agent Name
+        description: Name identifier for the agent
+        type: String
+        required: true
+        defaultValue: "default-agent"
+        modifiable: false
+        export: true
+
+      - key: logLevel
+        name: Log Level
+        description: Logging level for the agent runtime
+        type: String
+        required: false
+        defaultValue: "info"
+        modifiable: true
+        export: true
+        options:
+          - "debug"
+          - "info"
+          - "warn"
+          - "error"
+
+      - key: anthropicApiKey
+        name: Anthropic API Key
+        description: API key for Anthropic LLM provider
+        type: String
+        required: true
+        modifiable: true
+        export: false
+
+      - key: defaultModel
+        name: Default Model
+        description: Default LLM model to use
+        type: String
+        required: false
+        defaultValue: "claude-sonnet-4-5"
+        modifiable: true
+        export: true
+
+      - key: maxExecutionTime
+        name: Max Execution Time
+        description: Maximum execution time in seconds for agent tasks
+        type: String
+        required: false
+        defaultValue: "300"
+        modifiable: true
+        export: true
+
+      - key: maxRetries
+        name: Max Retries
+        description: Maximum number of retries for failed operations
+        type: String
+        required: false
+        defaultValue: "3"
+        modifiable: true
+        export: true
+
+      - key: enableTenantIsolation
+        name: Enable Tenant Isolation
+        description: Enable multi-tenant isolation
+        type: String
+        required: false
+        defaultValue: "true"
+        modifiable: true
+        export: true
+        options:
+          - "true"
+          - "false"
+
+    # Helm Chart Configuration
+    helmChartConfiguration:
+      chartName: agent-runtime
+      chartVersion: "0.4.0"
+      chartRepoName: omnistrate-community
+      chartRepoURL: oci://ghcr.io/omnistrate-community/agent-runtime
+      authProvider:
+        username: <YOUR_REGISTRY_USERNAME>
+        password: <YOUR_REGISTRY_PAT>
+      
+      # Chart Values - Mapped to helm-chart/values.yaml structure
+      chartValues:
+        # Agent Runtime API Configuration
+        agentApi:
+          replicaCount: "$var.replicaCount"
+
+          image:
+            repository: omnistrate/agent-runtime
+            tag: latest
+            pullPolicy: IfNotPresent
+
+          imagePullSecrets:
+            - name: agent-runtime-pull-secret
+
+          service:
+            type: LoadBalancer
+            port: 443
+            targetPort: 8000
+            annotations:
+              external-dns.alpha.kubernetes.io/hostname: "$sys.network.externalClusterEndpoint"
+              service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+              service.beta.kubernetes.io/aws-load-balancer-type: external
+              service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+
+          # API and agent configuration
+          config:
+            apiHost: "0.0.0.0"
+            apiPort: "8000"
+            defaultModel: "$var.defaultModel"
+            maxExecutionTime: "$var.maxExecutionTime"
+            maxRetries: "$var.maxRetries"
+            enableTenantIsolation: "$var.enableTenantIsolation"
+
+          # Tenant configuration from Omnistrate system parameters
+          tenant:
+            id: "{{ $sys.tenant.userID }}"
+            email: "{{ $sys.tenant.email }}"
+            name: "{{ $sys.tenant.name }}"
+            orgId: "{{ $sys.tenant.orgId }}"
+            orgName: "{{ $sys.tenant.orgName }}"
+
+          # Secrets for LLM provider
+          secrets:
+            anthropicApiKeySecret: "agent-secrets"
+            anthropicApiKeyKey: "ANTHROPIC_API_KEY"
+            anthropicApiKey: "$var.anthropicApiKey"
+
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1024Mi
+            requests:
+              cpu: 250m
+              memory: 512Mi
+
+          healthcheck:
+            enabled: true
+            path: /health
+            initialDelaySeconds: 40
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+
+          # Pod affinity for Omnistrate managed nodes
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: omnistrate.com/managed-by
+                        operator: In
+                        values:
+                          - omnistrate
+                      - key: topology.kubernetes.io/region
+                        operator: In
+                        values:
+                          - "{{ $sys.deploymentCell.region }}"
+                      - key: node.kubernetes.io/instance-type
+                        operator: In
+                        values:
+                          - "{{ $sys.compute.node.instanceType }}"
+                      - key: omnistrate.com/resource
+                        operator: In
+                        values:
+                          - "{{ $sys.deployment.resourceID }}"
+
+        # PostgreSQL - Disabled (using external Terraform-managed instance)
+        postgresql:
+          enabled: false
+          auth:
+            database: "{{ $tf-postgres.out.database }}"
+            username: "{{ $tf-postgres.out.username }}"
+            password: "{{ $tf-postgres.out.password }}"
+
+        # External PostgreSQL connection (passed to helpers template)
+        externalPostgresql:
+          host: "{{ $tf-postgres.out.host }}"
+          port: "{{ $tf-postgres.out.port }}"
+          username: "{{ $tf-postgres.out.username }}"
+          password: "{{ $tf-postgres.out.password }}"
+          database: "{{ $tf-postgres.out.database }}"
+
+        # Redis - Disabled (using external Terraform-managed instance)
+        redis:
+          enabled: false
+          architecture: standalone
+          auth:
+            enabled: false
+          tls:
+            enabled: false
+
+        # External Redis connection (passed to helpers template)
+        externalRedis:
+          host: "{{ $tf-redis.out.host }}"
+          port: "{{ $tf-redis.out.port }}"
+          password: "{{ $tf-redis.out.password }}"
+
+        # Ingress Configuration - Disabled (Omnistrate L7 load balancer handles external HTTPS routing)
+        ingress:
+          enabled: false
+
+        # Service Account
+        serviceAccount:
+          create: true
+          annotations: {}
+          name: ""
+
+    # Endpoint configuration - exposes connectivity details to customers
+    endpointConfiguration:
+      primary:
+        host: "$sys.network.externalClusterEndpoint"
+        ports:
+          - 443
+        primary: true
+        networkingType: PUBLIC
