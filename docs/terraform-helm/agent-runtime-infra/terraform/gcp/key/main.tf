@@ -8,70 +8,37 @@ terraform {
   }
 }
 
-provider "google" {
-  project = "{{ $sys.deployment.cloudProviderAccountID }}"
-  region  = "{{ $sys.deploymentCell.region }}"
-}
-
 #############################################
-# Variables with Omnistrate System Parameters
+# Variables
 #############################################
 
 variable "name" {
-  type    = string
-  default = "{{ $sys.id }}"
+  description = "Unique name/identifier for the resources"
+  type        = string
+}
+
+variable "user_id" {
+  description = "User Id for tagging the resource"
+  type        = string
 }
 
 variable "region" {
-  type    = string
-  default = "{{ $sys.deploymentCell.region }}"
+  description = "GCP region to deploy resources in"
+  type        = string
 }
 
 variable "project_id" {
-  type    = string
-  default = "{{ $sys.deployment.cloudProviderAccountID }}"
-}
-
-# User and Org labels from Omnistrate tenant parameters
-variable "user_id" {
+  description = "GCP project ID"
   type        = string
-  description = "User ID from Omnistrate"
-  default     = "{{ $sys.tenant.userID }}"
-}
-
-variable "user_email" {
-  type        = string
-  description = "User email from Omnistrate"
-  default     = "{{ $sys.tenant.email }}"
-}
-
-variable "org_id" {
-  type        = string
-  description = "Organization ID from Omnistrate"
-  default     = "{{ $sys.tenant.orgId }}"
-}
-
-variable "org_name" {
-  type        = string
-  description = "Organization name from Omnistrate"
-  default     = "{{ $sys.tenant.orgName }}"
 }
 
 #############################################
-# Common Labels with User and Org Information
+# Provider
 #############################################
 
-locals {
-  # Sanitize labels for GCP (lowercase, alphanumeric and underscores/hyphens only)
-  common_labels = {
-    managed-by   = "omnistrate"
-    instance-id  = lower(var.name)
-    user-id      = lower(var.user_id)
-    org-id       = lower(var.org_id)
-    environment  = lower("{{ $sys.deploymentCell.environmentType }}")
-    service-id   = lower("{{ $sys.deployment.serviceID }}")
-    plan-id      = lower("{{ $sys.deployment.planID }}")
-  }
+provider "google" {
+  project = var.project_id
+  region  = var.region
 }
 
 #############################################
@@ -89,7 +56,10 @@ resource "google_kms_crypto_key" "main" {
   key_ring        = google_kms_key_ring.main.id
   rotation_period = "7776000s" # 90 days
 
-  labels = local.common_labels
+  labels = {
+    name    = "agent-runtime-key-${var.name}"
+    user-id = lower(replace(var.user_id, "[^a-z0-9_-]", ""))
+  }
 
   lifecycle {
     prevent_destroy = false
@@ -97,7 +67,7 @@ resource "google_kms_crypto_key" "main" {
 }
 
 #############################################
-# Outputs - Exposed to Omnistrate
+# Outputs
 #############################################
 
 output "key_ring_id" {

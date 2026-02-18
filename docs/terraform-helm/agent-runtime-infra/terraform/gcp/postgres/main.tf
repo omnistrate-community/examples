@@ -12,61 +12,36 @@ terraform {
   }
 }
 
-provider "google" {
-  project = "{{ $sys.deployment.cloudProviderAccountID }}"
-  region  = "{{ $sys.deploymentCell.region }}"
-}
-
 #############################################
-# Variables with Omnistrate System Parameters
+# Variables
 #############################################
 
 variable "name" {
-  type    = string
-  default = "{{ $sys.id }}"
+  description = "Unique name/identifier for the resources"
+  type        = string
+}
+
+variable "user_id" {
+  description = "User Id for tagging the resource"
+  type        = string
 }
 
 variable "region" {
-  type    = string
-  default = "{{ $sys.deploymentCell.region }}"
+  description = "GCP region to deploy resources in"
+  type        = string
 }
 
 variable "project_id" {
-  type    = string
-  default = "{{ $sys.deployment.cloudProviderAccountID }}"
+  description = "GCP project ID"
+  type        = string
 }
 
 variable "network_id" {
-  type    = string
-  default = "{{ $sys.deploymentCell.cloudProviderNetworkID }}"
-}
-
-# User and Org labels from Omnistrate tenant parameters
-variable "user_id" {
+  description = "VPC network ID for private IP configuration"
   type        = string
-  description = "User ID from Omnistrate"
-  default     = "{{ $sys.tenant.userID }}"
+  default     = ""
 }
 
-variable "user_email" {
-  type        = string
-  description = "User email from Omnistrate"
-  default     = "{{ $sys.tenant.email }}"
-}
-
-variable "org_id" {
-  type        = string
-  description = "Organization ID from Omnistrate"
-  default     = "{{ $sys.tenant.orgId }}"
-}
-
-variable "org_name" {
-  type        = string
-  description = "Organization name from Omnistrate"
-  default     = "{{ $sys.tenant.orgName }}"
-}
-
-# Database configuration
 variable "tier" {
   description = "Cloud SQL machine tier"
   type        = string
@@ -86,24 +61,18 @@ variable "ha" {
 }
 
 variable "db_username" {
-  type    = string
-  default = "postgres"
+  description = "PostgreSQL username"
+  type        = string
+  default     = "postgres"
 }
 
 #############################################
-# Common Labels with User and Org Information
+# Provider
 #############################################
 
-locals {
-  common_labels = {
-    managed-by   = "omnistrate"
-    instance-id  = lower(var.name)
-    user-id      = lower(var.user_id)
-    org-id       = lower(var.org_id)
-    environment  = lower("{{ $sys.deploymentCell.environmentType }}")
-    service-id   = lower("{{ $sys.deployment.serviceID }}")
-    plan-id      = lower("{{ $sys.deployment.planID }}")
-  }
+provider "google" {
+  project = var.project_id
+  region  = var.region
 }
 
 #############################################
@@ -168,7 +137,10 @@ resource "google_sql_database_instance" "postgres" {
       update_track = "stable"
     }
 
-    user_labels = local.common_labels
+    user_labels = {
+      name    = "postgres-${var.name}"
+      user-id = lower(replace(var.user_id, "[^a-z0-9_-]", ""))
+    }
   }
 }
 
@@ -194,7 +166,7 @@ resource "google_sql_user" "user" {
 }
 
 #############################################
-# Outputs - Exposed to Omnistrate
+# Outputs
 #############################################
 
 output "host" {

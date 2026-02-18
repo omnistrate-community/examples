@@ -12,69 +12,40 @@ terraform {
   }
 }
 
-provider "aws" {
-  region = "{{ $sys.deploymentCell.region }}"
-}
-
 #############################################
-# Variables with Omnistrate System Parameters
+# Variables
 #############################################
 
 variable "name" {
-  type    = string
-  default = "{{ $sys.id }}"
+  description = "Unique name/identifier for the resources"
+  type        = string
+}
+
+variable "user_id" {
+  description = "User Id for tagging the resource"
+  type        = string
 }
 
 variable "region" {
-  type    = string
-  default = "{{ $sys.deploymentCell.region }}"
+  description = "AWS region to deploy resources in"
+  type        = string
 }
 
 variable "vpc_id" {
-  type    = string
-  default = "{{ $sys.deploymentCell.cloudProviderNetworkID }}"
+  description = "VPC ID to deploy the ElastiCache cluster in"
+  type        = string
 }
 
 variable "vpc_cidr" {
-  type    = string
-  default = "{{ $sys.deploymentCell.cidrRange }}"
+  description = "CIDR block of the VPC for security group rules"
+  type        = string
 }
 
 variable "subnet_ids" {
-  type = list(string)
-  default = [
-    "{{ $sys.deploymentCell.privateSubnetIDs[0].id }}",
-    "{{ $sys.deploymentCell.privateSubnetIDs[1].id }}",
-    "{{ $sys.deploymentCell.privateSubnetIDs[2].id }}"
-  ]
+  description = "List of subnet IDs for the ElastiCache subnet group"
+  type        = list(string)
 }
 
-# User and Org tags from Omnistrate tenant parameters
-variable "user_id" {
-  type        = string
-  description = "User ID from Omnistrate"
-  default     = "{{ $sys.tenant.userID }}"
-}
-
-variable "user_email" {
-  type        = string
-  description = "User email from Omnistrate"
-  default     = "{{ $sys.tenant.email }}"
-}
-
-variable "org_id" {
-  type        = string
-  description = "Organization ID from Omnistrate"
-  default     = "{{ $sys.tenant.orgId }}"
-}
-
-variable "org_name" {
-  type        = string
-  description = "Organization name from Omnistrate"
-  default     = "{{ $sys.tenant.orgName }}"
-}
-
-# Redis configuration
 variable "node_type" {
   description = "ElastiCache node type"
   type        = string
@@ -100,37 +71,29 @@ variable "num_node_groups" {
 }
 
 variable "port" {
-  type    = number
-  default = 6379
+  description = "Redis port"
+  type        = number
+  default     = 6379
 }
 
 variable "parameter_group_name" {
-  type    = string
-  default = "default.redis7"
+  description = "ElastiCache parameter group name"
+  type        = string
+  default     = "default.redis7"
 }
 
 variable "snapshot_retention_limit" {
-  type    = number
-  default = 7
+  description = "Number of days to retain snapshots"
+  type        = number
+  default     = 7
 }
 
 #############################################
-# Common Tags with User and Org Information
+# Provider
 #############################################
 
-locals {
-  common_tags = {
-    ManagedBy   = "Omnistrate"
-    InstanceID  = var.name
-    UserID      = var.user_id
-    UserEmail   = var.user_email
-    OrgID       = var.org_id
-    OrgName     = var.org_name
-    Environment = "{{ $sys.deploymentCell.environmentType }}"
-    ServiceID   = "{{ $sys.deployment.serviceID }}"
-    PlanID      = "{{ $sys.deployment.planID }}"
-    Region      = var.region
-  }
+provider "aws" {
+  region = var.region
 }
 
 #############################################
@@ -151,11 +114,14 @@ resource "random_password" "redis_password" {
 #############################################
 
 resource "aws_ssm_parameter" "redis_password" {
-  name  = "/omnistrate/${var.name}/redis/password"
+  name  = "/agent-runtime/${var.name}/redis/password"
   type  = "SecureString"
   value = random_password.redis_password.result
 
-  tags = local.common_tags
+  tags = {
+    Name   = "${var.name}-redis-password"
+    UserID = var.user_id
+  }
 }
 
 #############################################
@@ -183,9 +149,10 @@ resource "aws_security_group" "redis_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = merge(local.common_tags, {
-    Name = "${var.name}-redis-sg"
-  })
+  tags = {
+    Name   = "${var.name}-redis-sg"
+    UserID = var.user_id
+  }
 }
 
 #############################################
@@ -197,7 +164,10 @@ resource "aws_elasticache_subnet_group" "redis_subnet_group" {
   description = "Subnet group for Redis ElastiCache"
   subnet_ids  = var.subnet_ids
 
-  tags = local.common_tags
+  tags = {
+    Name   = "redis-${var.name}"
+    UserID = var.user_id
+  }
 }
 
 #############################################
@@ -231,13 +201,14 @@ resource "aws_elasticache_replication_group" "redis" {
 
   snapshot_retention_limit   = var.snapshot_retention_limit
 
-  tags = merge(local.common_tags, {
-    Name = "redis-${var.name}"
-  })
+  tags = {
+    Name   = "redis-${var.name}"
+    UserID = var.user_id
+  }
 }
 
 #############################################
-# Outputs - Exposed to Omnistrate
+# Outputs
 #############################################
 
 output "host" {

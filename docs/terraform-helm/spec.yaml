@@ -24,12 +24,28 @@ services:
         aws:
           terraformPath: /terraform/aws/postgres
           terraformExecutionIdentity: "arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-custom-terraform-execution-role"
+          variablesValuesFileOverride: |
+            name = "{{ $sys.id }}"
+            user_id = "{{ $sys.tenant.userID }}"
+            region = "{{ $sys.deploymentCell.region }}"
+            vpc_id = "{{ $sys.deploymentCell.cloudProviderNetworkID }}"
+            vpc_cidr = "{{ $sys.deploymentCell.cidrRange }}"
+            subnet_ids = [
+              "{{ $sys.deploymentCell.privateSubnetIDs[0].id }}",
+              "{{ $sys.deploymentCell.privateSubnetIDs[1].id }}",
+              "{{ $sys.deploymentCell.privateSubnetIDs[2].id }}"
+            ]
           gitConfiguration:
             reference: refs/heads/main
             repositoryUrl: https://github.com/<YOUR_REPO>.git
             accessToken: <YOUR_GITHUB_PAT>
         gcp:
           terraformPath: /terraform/gcp/postgres
+          variablesValuesFileOverride: |
+            name = "{{ $sys.id }}"
+            user_id = "{{ $sys.tenant.userID }}"
+            region = "{{ $sys.deploymentCell.region }}"
+            project_id = "{{ $sys.deploymentCell.gcp.projectID }}"
           gitConfiguration:
             reference: refs/heads/main
             repositoryUrl: https://github.com/<YOUR_REPO>.git
@@ -43,12 +59,28 @@ services:
         aws:
           terraformPath: /terraform/aws/redis
           terraformExecutionIdentity: "arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-custom-terraform-execution-role"
+          variablesValuesFileOverride: |
+            name = "{{ $sys.id }}"
+            user_id = "{{ $sys.tenant.userID }}"
+            region = "{{ $sys.deploymentCell.region }}"
+            vpc_id = "{{ $sys.deploymentCell.cloudProviderNetworkID }}"
+            vpc_cidr = "{{ $sys.deploymentCell.cidrRange }}"
+            subnet_ids = [
+              "{{ $sys.deploymentCell.privateSubnetIDs[0].id }}",
+              "{{ $sys.deploymentCell.privateSubnetIDs[1].id }}",
+              "{{ $sys.deploymentCell.privateSubnetIDs[2].id }}"
+            ]
           gitConfiguration:
             reference: refs/heads/main
             repositoryUrl: https://github.com/<YOUR_REPO>.git
             accessToken: <YOUR_GITHUB_PAT>
         gcp:
           terraformPath: /terraform/gcp/redis
+          variablesValuesFileOverride: |
+            name = "{{ $sys.id }}"
+            user_id = "{{ $sys.tenant.userID }}"
+            region = "{{ $sys.deploymentCell.region }}"
+            project_id = "{{ $sys.deploymentCell.gcp.projectID }}"
           gitConfiguration:
             reference: refs/heads/main
             repositoryUrl: https://github.com/<YOUR_REPO>.git

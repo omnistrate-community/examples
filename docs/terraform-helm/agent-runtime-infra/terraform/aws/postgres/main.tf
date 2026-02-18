@@ -12,69 +12,40 @@ terraform {
   }
 }
 
-provider "aws" {
-  region = "{{ $sys.deploymentCell.region }}"
-}
-
 #############################################
-# Variables with Omnistrate System Parameters
+# Variables
 #############################################
 
 variable "name" {
-  type    = string
-  default = "{{ $sys.id }}"
+  description = "Unique name/identifier for the resources"
+  type        = string
+}
+
+variable "user_id" {
+  description = "User Id for tagging the resource"
+  type        = string
 }
 
 variable "region" {
-  type    = string
-  default = "{{ $sys.deploymentCell.region }}"
+  description = "AWS region to deploy resources in"
+  type        = string
 }
 
 variable "vpc_id" {
-  type    = string
-  default = "{{ $sys.deploymentCell.cloudProviderNetworkID }}"
+  description = "VPC ID to deploy the RDS instance in"
+  type        = string
 }
 
 variable "vpc_cidr" {
-  type    = string
-  default = "{{ $sys.deploymentCell.cidrRange }}"
+  description = "CIDR block of the VPC for security group rules"
+  type        = string
 }
 
 variable "subnet_ids" {
-  type = list(string)
-  default = [
-    "{{ $sys.deploymentCell.privateSubnetIDs[0].id }}",
-    "{{ $sys.deploymentCell.privateSubnetIDs[1].id }}",
-    "{{ $sys.deploymentCell.privateSubnetIDs[2].id }}"
-  ]
+  description = "List of subnet IDs for the DB subnet group"
+  type        = list(string)
 }
 
-# User and Org tags from Omnistrate tenant parameters
-variable "user_id" {
-  type        = string
-  description = "User ID from Omnistrate"
-  default     = "{{ $sys.tenant.userID }}"
-}
-
-variable "user_email" {
-  type        = string
-  description = "User email from Omnistrate"
-  default     = "{{ $sys.tenant.email }}"
-}
-
-variable "org_id" {
-  type        = string
-  description = "Organization ID from Omnistrate"
-  default     = "{{ $sys.tenant.orgId }}"
-}
-
-variable "org_name" {
-  type        = string
-  description = "Organization name from Omnistrate"
-  default     = "{{ $sys.tenant.orgName }}"
-}
-
-# Database configuration
 variable "instance_type" {
   description = "RDS instance type"
   type        = string
@@ -94,13 +65,15 @@ variable "ha" {
 }
 
 variable "rds_username" {
-  type    = string
-  default = "postgres"
+  description = "Master username for the RDS instance"
+  type        = string
+  default     = "postgres"
 }
 
 variable "storage_type" {
-  type    = string
-  default = "gp3"
+  description = "Storage type for the RDS instance"
+  type        = string
+  default     = "gp3"
 }
 
 variable "backup_retention_period" {
@@ -122,22 +95,11 @@ variable "deletion_protection" {
 }
 
 #############################################
-# Common Tags with User and Org Information
+# Provider
 #############################################
 
-locals {
-  common_tags = {
-    ManagedBy   = "Omnistrate"
-    InstanceID  = var.name
-    UserID      = var.user_id
-    UserEmail   = var.user_email
-    OrgID       = var.org_id
-    OrgName     = var.org_name
-    Environment = "{{ $sys.deploymentCell.environmentType }}"
-    ServiceID   = "{{ $sys.deployment.serviceID }}"
-    PlanID      = "{{ $sys.deployment.planID }}"
-    Region      = var.region
-  }
+provider "aws" {
+  region = var.region
 }
 
 #############################################
@@ -158,19 +120,25 @@ resource "random_password" "postgres_password" {
 #############################################
 
 resource "aws_ssm_parameter" "postgres_username" {
-  name  = "/omnistrate/${var.name}/postgres/username"
+  name  = "/agent-runtime/${var.name}/postgres/username"
   type  = "SecureString"
   value = var.rds_username
 
-  tags = local.common_tags
+  tags = {
+    Name   = "${var.name}-postgres-username"
+    UserID = var.user_id
+  }
 }
 
 resource "aws_ssm_parameter" "postgres_password" {
-  name  = "/omnistrate/${var.name}/postgres/password"
+  name  = "/agent-runtime/${var.name}/postgres/password"
   type  = "SecureString"
   value = random_password.postgres_password.result
 
-  tags = local.common_tags
+  tags = {
+    Name   = "${var.name}-postgres-password"
+    UserID = var.user_id
+  }
 }
 
 #############################################
@@ -198,9 +166,10 @@ resource "aws_security_group" "postgres_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = merge(local.common_tags, {
-    Name = "${var.name}-postgres-sg"
-  })
+  tags = {
+    Name   = "${var.name}-postgres-sg"
+    UserID = var.user_id
+  }
 }
 
 #############################################
@@ -212,9 +181,10 @@ resource "aws_db_subnet_group" "postgres_subnet_group" {
   description = "Subnet group for PostgreSQL RDS"
   subnet_ids  = var.subnet_ids
 
-  tags = merge(local.common_tags, {
-    Name = "postgres-${var.name}"
-  })
+  tags = {
+    Name   = "postgres-${var.name}"
+    UserID = var.user_id
+  }
 }
 
 #############################################
@@ -226,7 +196,10 @@ resource "aws_cloudwatch_log_group" "postgres_logs" {
   name              = "/aws/rds/instance/postgres-${var.name}/${each.value}"
   retention_in_days = 7
 
-  tags = local.common_tags
+  tags = {
+    Name   = "postgres-${var.name}-${each.value}"
+    UserID = var.user_id
+  }
 }
 
 #############################################
@@ -268,15 +241,16 @@ resource "aws_db_instance" "postgres" {
   deletion_protection      = var.deletion_protection
   delete_automated_backups = true
 
-  tags = merge(local.common_tags, {
-    Name = "postgres-${var.name}"
-  })
+  tags = {
+    Name   = "postgres-${var.name}"
+    UserID = var.user_id
+  }
 
   depends_on = [aws_cloudwatch_log_group.postgres_logs]
 }
 
 #############################################
-# Outputs - Exposed to Omnistrate
+# Outputs
 #############################################
 
 output "host" {

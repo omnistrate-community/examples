@@ -8,66 +8,31 @@ terraform {
   }
 }
 
-provider "aws" {
-  region = "{{ $sys.deploymentCell.region }}"
-}
-
 #############################################
-# Variables with Omnistrate System Parameters
+# Variables
 #############################################
 
 variable "name" {
-  type    = string
-  default = "{{ $sys.id }}"
+  description = "Unique name/identifier for the resources"
+  type        = string
+}
+
+variable "user_id" {
+  description = "User Id for tagging the resource"
+  type        = string
 }
 
 variable "region" {
-  type    = string
-  default = "{{ $sys.deploymentCell.region }}"
-}
-
-# User and Org tags from Omnistrate tenant parameters
-variable "user_id" {
+  description = "AWS region to deploy resources in"
   type        = string
-  description = "User ID from Omnistrate"
-  default     = "{{ $sys.tenant.userID }}"
-}
-
-variable "user_email" {
-  type        = string
-  description = "User email from Omnistrate"
-  default     = "{{ $sys.tenant.email }}"
-}
-
-variable "org_id" {
-  type        = string
-  description = "Organization ID from Omnistrate"
-  default     = "{{ $sys.tenant.orgId }}"
-}
-
-variable "org_name" {
-  type        = string
-  description = "Organization name from Omnistrate"
-  default     = "{{ $sys.tenant.orgName }}"
 }
 
 #############################################
-# Common Tags with User and Org Information
+# Provider
 #############################################
 
-locals {
-  common_tags = {
-    ManagedBy   = "Omnistrate"
-    InstanceID  = var.name
-    UserID      = var.user_id
-    UserEmail   = var.user_email
-    OrgID       = var.org_id
-    OrgName     = var.org_name
-    Environment = "{{ $sys.deploymentCell.environmentType }}"
-    ServiceID   = "{{ $sys.deployment.serviceID }}"
-    PlanID      = "{{ $sys.deployment.planID }}"
-    Region      = var.region
-  }
+provider "aws" {
+  region = var.region
 }
 
 #############################################
@@ -79,9 +44,10 @@ resource "aws_kms_key" "main" {
   deletion_window_in_days = 7
   enable_key_rotation     = true
 
-  tags = merge(local.common_tags, {
-    Name = "agent-runtime-key-${var.name}"
-  })
+  tags = {
+    Name   = "agent-runtime-key-${var.name}"
+    UserID = var.user_id
+  }
 }
 
 resource "aws_kms_alias" "main" {
@@ -90,7 +56,7 @@ resource "aws_kms_alias" "main" {
 }
 
 #############################################
-# Outputs - Exposed to Omnistrate
+# Outputs
 #############################################
 
 output "arn" {
