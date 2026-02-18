@@ -23,6 +23,7 @@ The key architectural pattern is **infrastructure-as-code composition**: Terrafo
 | Provider-Hosted Deployment | `hostedDeployment` | Deploys all infrastructure in your cloud accounts |
 | Multi-Cloud Support | AWS + GCP configurations | Terraform and Helm configured for both cloud providers |
 | Terraform Infrastructure | `terraformConfigurations` | Managed database and cache provisioned via IaC |
+| Variable Overrides | `variablesValuesFileOverride` | System parameters injected as Terraform `.tfvars` at deploy time |
 | Helm Chart Deployment | `helmChartConfiguration` | Kubernetes-native application deployment |
 | Cross-Resource References | `{{ $tf-postgres.out.* }}` | Terraform outputs flow into Helm chart values |
 | Tenant Isolation | `$sys.tenant.*` system parameters | Per-tenant context injected into both Terraform tags and Helm values |
@@ -76,8 +77,9 @@ Each Terraform resource is defined with:
 
 1. **`internal: true`** — Marks it as a backing resource, hidden from customers
 2. **`terraformConfigurations`** — Points to Terraform code per cloud provider
-3. **`gitConfiguration`** — Specifies the Git repo, branch, and access token
-4. **`terraformExecutionIdentity`** (AWS) — A scoped IAM role for Terraform execution
+3. **`variablesValuesFileOverride`** — Inlines a `.tfvars` file that injects Omnistrate [system parameters](https://docs.omnistrate.com/build-guides/system-parameters/) into the Terraform variables at deploy time
+4. **`gitConfiguration`** — Specifies the Git repo, branch, and access token
+5. **`terraformExecutionIdentity`** (AWS) — A scoped IAM role for Terraform execution
 
 ```yaml
 - name: tf-postgres
@@ -87,25 +89,43 @@ Each Terraform resource is defined with:
       aws:
         terraformPath: /terraform/aws/postgres
         terraformExecutionIdentity: "arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-custom-terraform-execution-role"
+        variablesValuesFileOverride: |
+          name = "{{ $sys.id }}"
+          user_id = "{{ $sys.tenant.userID }}"
+          region = "{{ $sys.deploymentCell.region }}"
+          vpc_id = "{{ $sys.deploymentCell.cloudProviderNetworkID }}"
+          vpc_cidr = "{{ $sys.deploymentCell.cidrRange }}"
+          subnet_ids = [
+            "{{ $sys.deploymentCell.privateSubnetIDs[0].id }}",
+            "{{ $sys.deploymentCell.privateSubnetIDs[1].id }}",
+            "{{ $sys.deploymentCell.privateSubnetIDs[2].id }}"
+          ]
         gitConfiguration:
           reference: refs/heads/main
           repositoryUrl: https://github.com/<YOUR_REPO>.git
           accessToken: <YOUR_GITHUB_PAT>
       gcp:
         terraformPath: /terraform/gcp/postgres
+        variablesValuesFileOverride: |
+          name = "{{ $sys.id }}"
+          user_id = "{{ $sys.tenant.userID }}"
+          region = "{{ $sys.deploymentCell.region }}"
+          project_id = "{{ $sys.deploymentCell.gcp.projectID }}"
         gitConfiguration:
           reference: refs/heads/main
           repositoryUrl: https://github.com/<YOUR_REPO>.git
           accessToken: <YOUR_GITHUB_PAT>
 ```
 
+The `variablesValuesFileOverride` block is the key mechanism for parameterizing Terraform. Omnistrate resolves the `{{ $sys.* }}` template expressions and writes them into a `.tfvars` file before running `terraform apply`. This keeps the Terraform modules **generic and reusable** — they declare plain variables without hardcoded defaults, and all deployment-specific values come from the override.
+
 ### How Omnistrate Manages Terraform
 
 When a customer creates an instance, Omnistrate:
 
 1. **Clones** the Git repository at the specified reference
-2. **Injects** [system parameters](https://docs.omnistrate.com/build-guides/system-parameters/) into the Terraform templates (e.g., `{{ $sys.deploymentCell.region }}`, `{{ $sys.id }}`, `{{ $sys.tenant.userID }}`)
-3. **Executes** `terraform init` → `terraform plan` → `terraform apply` using the specified execution identity
+2. **Generates a `.tfvars` file** from `variablesValuesFileOverride`, resolving all [system parameter](https://docs.omnistrate.com/build-guides/system-parameters/) templates (e.g., `{{ $sys.deploymentCell.region }}`, `{{ $sys.id }}`, `{{ $sys.tenant.userID }}`)
+3. **Executes** `terraform init` → `terraform plan` → `terraform apply` with the generated `.tfvars` using the specified execution identity
 4. **Captures outputs** (e.g., `host`, `port`, `username`, `password`) and makes them available to dependent resources via `{{ $tf-postgres.out.* }}`
 5. **Destroys** infrastructure with `terraform destroy` when the customer deletes their instance
 
@@ -118,20 +138,49 @@ Provisions a fully managed PostgreSQL database with the following cloud-provider
 | AWS | Amazon RDS PostgreSQL 15 | RDS instance, security group, subnet group, SSM parameters, CloudWatch logs |
 | GCP | Cloud SQL PostgreSQL 15 | Cloud SQL instance, database, user |
 
-Both stacks use Omnistrate system parameters for dynamic configuration:
+The Terraform modules declare clean, reusable variables — no hardcoded defaults for deployment-specific values:
 
 ```hcl
 variable "name" {
-  default = "{{ $sys.id }}"
+  description = "Unique name/identifier for the resources"
+  type        = string
 }
 
 variable "region" {
-  default = "{{ $sys.deploymentCell.region }}"
+  description = "AWS region to deploy resources in"
+  type        = string
 }
 
 variable "vpc_id" {
-  default = "{{ $sys.deploymentCell.cloudProviderNetworkID }}"
+  description = "VPC ID to deploy the RDS instance in"
+  type        = string
 }
+```
+
+Omnistrate populates these variables at deploy time via `variablesValuesFileOverride`. For AWS, this includes VPC, CIDR, and private subnet details:
+
+```yaml
+variablesValuesFileOverride: |
+  name = "{{ $sys.id }}"
+  user_id = "{{ $sys.tenant.userID }}"
+  region = "{{ $sys.deploymentCell.region }}"
+  vpc_id = "{{ $sys.deploymentCell.cloudProviderNetworkID }}"
+  vpc_cidr = "{{ $sys.deploymentCell.cidrRange }}"
+  subnet_ids = [
+    "{{ $sys.deploymentCell.privateSubnetIDs[0].id }}",
+    "{{ $sys.deploymentCell.privateSubnetIDs[1].id }}",
+    "{{ $sys.deploymentCell.privateSubnetIDs[2].id }}"
+  ]
+```
+
+For GCP, the override is simpler since Cloud SQL does not require subnet configuration:
+
+```yaml
+variablesValuesFileOverride: |
+  name = "{{ $sys.id }}"
+  user_id = "{{ $sys.tenant.userID }}"
+  region = "{{ $sys.deploymentCell.region }}"
+  project_id = "{{ $sys.deploymentCell.gcp.projectID }}"
 ```
 
 Terraform outputs are automatically captured and made available to the Helm chart:
@@ -163,7 +212,8 @@ Provisions a managed Redis cache with encryption and authentication:
 Both implementations feature:
 - **Encryption at rest and in transit** enabled by default
 - **Auto-generated auth tokens** via `random_password`
-- **Tenant-aware tagging/labeling** with Omnistrate system parameters
+- **Tenant-aware tagging/labeling** via `user_id` variable injected from `{{ $sys.tenant.userID }}`
+- **Clean, reusable modules** — all deployment-specific values supplied through `variablesValuesFileOverride`, keeping the `.tf` files portable
 
 ---
 
@@ -391,12 +441,28 @@ services:
         aws:
           terraformPath: /terraform/aws/postgres
           terraformExecutionIdentity: "arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-custom-terraform-execution-role"
+          variablesValuesFileOverride: |
+            name = "{{ $sys.id }}"
+            user_id = "{{ $sys.tenant.userID }}"
+            region = "{{ $sys.deploymentCell.region }}"
+            vpc_id = "{{ $sys.deploymentCell.cloudProviderNetworkID }}"
+            vpc_cidr = "{{ $sys.deploymentCell.cidrRange }}"
+            subnet_ids = [
+              "{{ $sys.deploymentCell.privateSubnetIDs[0].id }}",
+              "{{ $sys.deploymentCell.privateSubnetIDs[1].id }}",
+              "{{ $sys.deploymentCell.privateSubnetIDs[2].id }}"
+            ]
           gitConfiguration:
             reference: refs/heads/main
             repositoryUrl: https://github.com/<YOUR_REPO>.git
             accessToken: <YOUR_GITHUB_PAT>
         gcp:
           terraformPath: /terraform/gcp/postgres
+          variablesValuesFileOverride: |
+            name = "{{ $sys.id }}"
+            user_id = "{{ $sys.tenant.userID }}"
+            region = "{{ $sys.deploymentCell.region }}"
+            project_id = "{{ $sys.deploymentCell.gcp.projectID }}"
           gitConfiguration:
             reference: refs/heads/main
             repositoryUrl: https://github.com/<YOUR_REPO>.git
@@ -410,12 +476,28 @@ services:
         aws:
           terraformPath: /terraform/aws/redis
           terraformExecutionIdentity: "arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-custom-terraform-execution-role"
+          variablesValuesFileOverride: |
+            name = "{{ $sys.id }}"
+            user_id = "{{ $sys.tenant.userID }}"
+            region = "{{ $sys.deploymentCell.region }}"
+            vpc_id = "{{ $sys.deploymentCell.cloudProviderNetworkID }}"
+            vpc_cidr = "{{ $sys.deploymentCell.cidrRange }}"
+            subnet_ids = [
+              "{{ $sys.deploymentCell.privateSubnetIDs[0].id }}",
+              "{{ $sys.deploymentCell.privateSubnetIDs[1].id }}",
+              "{{ $sys.deploymentCell.privateSubnetIDs[2].id }}"
+            ]
           gitConfiguration:
             reference: refs/heads/main
             repositoryUrl: https://github.com/<YOUR_REPO>.git
             accessToken: <YOUR_GITHUB_PAT>
         gcp:
           terraformPath: /terraform/gcp/redis
+          variablesValuesFileOverride: |
+            name = "{{ $sys.id }}"
+            user_id = "{{ $sys.tenant.userID }}"
+            region = "{{ $sys.deploymentCell.region }}"
+            project_id = "{{ $sys.deploymentCell.gcp.projectID }}"
           gitConfiguration:
             reference: refs/heads/main
             repositoryUrl: https://github.com/<YOUR_REPO>.git
