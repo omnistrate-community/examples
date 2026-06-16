@@ -24,6 +24,10 @@ Deploy and manage NoSQL database solutions with Omnistrate's platform capabiliti
 
 Deploy a Redis Cluster through the Opstree Redis Operator using Omnistrate operator CRD configuration, public endpoints, persistent storage, and customer-configurable parameters.
 
+### [Redis Operator Custom Amenities](redis-operator-customameneties/README.md)
+
+Deploy the same Redis Cluster service while installing the Opstree Redis Operator once at the deployment-cell level as the `redis-operator` custom amenity.
+
 ### [Qdrant Vector Database](qdrant/README.md)
 
 Build a Qdrant vector database SaaS with three distinct service plans: Free Tier (Multitenant), Dedicated Tier, and Enterprise Tier (BYOA). This example demonstrates how to configure different tenancy models, deployment options, and observability integrations for various customer segments.
