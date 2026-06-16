@@ -1,6 +1,6 @@
 # Redis Operator With Custom Amenities
 
-This example uses the same Redis Cluster service spec as the Redis Operator example, but installs the Opstree Redis Operator as a deployment-cell custom amenity instead of declaring it under `helmChartDependencies` in the service spec.
+This example uses the same Redis Cluster service spec as the [Redis Operator example](../redis-operator/README.md), but installs the Opstree Redis Operator as a deployment-cell custom amenity instead of declaring it under `helmChartDependencies` in the service spec.
 
 Use this pattern when the operator should be installed once in the deployment cell and reused by Redis service instances.
 
@@ -54,7 +54,7 @@ That block is not needed because the `redis-operator` custom amenity installs th
 
 ## Deployment Flow
 
-1. Add the custom amenity from [deployment-cell-config.yaml](deployment-cell-config.yaml) to the deployment cell.
+1. Update your deployment cell amenities with [deployment-cell-config.yaml](deployment-cell-config.yaml), following the [Deployment Cell Amenities guide](https://docs.omnistrate.com/operate-guides/deployment-cell-amenities/).
 2. Build or update the Redis service using [spec.yaml](spec.yaml).
 3. Omnistrate creates the `RedisCluster` custom resource for each service instance.
 4. The Redis Operator installed by the `redis-operator` custom amenity reconciles the custom resource into Redis pods, services, and persistent volumes.
