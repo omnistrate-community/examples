@@ -26,7 +26,7 @@ Deploy a Redis Cluster through the Opstree Redis Operator using Omnistrate opera
 
 ### [Redis Operator Custom Amenities](redis-operator-customameneties/README.md)
 
-Deploy the same Redis Cluster service while installing the Opstree Redis Operator once at the deployment-cell level as the `redis-operator` custom amenity.
+Deploy the same Redis Cluster service using one Opstree Redis Operator installation per deployment cell through the `redis-operator` custom amenity.
 
 ### [Qdrant Vector Database](qdrant/README.md)
 
