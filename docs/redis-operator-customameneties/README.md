@@ -2,7 +2,7 @@
 
 This example uses the same Redis Cluster service spec as the [Redis Operator example](../redis-operator/README.md), but installs the Opstree Redis Operator as a deployment-cell custom amenity instead of declaring it under `helmChartDependencies` in the service spec.
 
-Use this pattern when the operator should be installed once in the deployment cell and reused by Redis service instances.
+Use this pattern when you need one Redis Operator installation per deployment cell, reused by Redis service instances in that cell.
 
 ## Files
 
