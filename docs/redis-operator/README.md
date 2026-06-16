@@ -16,6 +16,10 @@ The service provisions:
 | Persistent volume claims | Stores Redis data and per-node configuration. |
 | Readiness and output parameters | Lets Omnistrate determine when the cluster is ready and show runtime status to users. |
 
+## Complete Spec
+
+The full Redis Operator service spec is available in [spec.yaml](spec.yaml). Replace the AWS account placeholders with your provider account details before deploying it.
+
 ## Top-Level Service Plan
 
 ```yaml
