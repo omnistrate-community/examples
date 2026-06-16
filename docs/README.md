@@ -20,6 +20,14 @@ Set up a MySQL cluster with master-replica architecture for high-performance dat
 
 Deploy and manage NoSQL database solutions with Omnistrate's platform capabilities.
 
+### [Redis Operator](redis-operator/README.md)
+
+Deploy a Redis Cluster through the Opstree Redis Operator using Omnistrate operator CRD configuration, public endpoints, persistent storage, and customer-configurable parameters.
+
+### [Redis Operator Custom Amenities](redis-operator-customameneties/README.md)
+
+Deploy the same Redis Cluster service using one Opstree Redis Operator installation per deployment cell through the `redis-operator` custom amenity.
+
 ### [Qdrant Vector Database](qdrant/README.md)
 
 Build a Qdrant vector database SaaS with three distinct service plans: Free Tier (Multitenant), Dedicated Tier, and Enterprise Tier (BYOA). This example demonstrates how to configure different tenancy models, deployment options, and observability integrations for various customer segments.

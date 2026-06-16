@@ -1,0 +1,187 @@
+# yaml-language-server: $schema=https://api.omnistrate.cloud/2022-09-01-00/schema/service-spec-schema.json
+name: Redis Operator
+deployment:
+  hostedDeployment:
+    awsAccountId: "<AWS_ACCOUNT_ID>"
+    awsBootstrapRoleAccountArn: "arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-bootstrap-role"
+tenancyType: CUSTOM_TENANCY
+features:
+  INTERNAL:
+    logs: {}
+    metrics: {}
+  CUSTOMER:
+    logs: {}
+    metrics: {}
+
+services:
+  - name: Redis Cluster
+    compute:
+      instanceTypes:
+        - apiParam: instanceType
+          cloudProvider: aws
+    network:
+      ports:
+        - 6379
+    apiParameters:
+      - key: instanceType
+        description: Instance type for Redis nodes
+        name: Instance Type
+        type: String
+        modifiable: true
+        required: false
+        export: true
+        defaultValue: "t3.medium"
+      - key: redisPassword
+        description: Password for Redis authentication
+        name: Redis Password
+        type: Password
+        modifiable: false
+        required: true
+        export: true
+      - key: clusterSize
+        description: Number of Redis leader and follower nodes
+        name: Cluster Size
+        type: Float64
+        modifiable: false
+        required: false
+        export: true
+        defaultValue: "3"
+        limits:
+          min: 3
+      - key: storageSize
+        description: Persistent volume size for each Redis data volume
+        name: Storage Size
+        type: String
+        modifiable: true
+        required: false
+        export: true
+        defaultValue: "10Gi"
+    endpointConfiguration:
+      primary:
+        host: "$sys.network.externalClusterEndpoint"
+        ports:
+          - 6379
+        primary: true
+        networkingType: PUBLIC
+    operatorCRDConfiguration:
+      template: |
+        apiVersion: redis.redis.opstreelabs.in/v1beta2
+        kind: RedisCluster
+        metadata:
+          name: {{ $sys.id }}
+        spec:
+          clusterSize: {{ $var.clusterSize }}
+          clusterVersion: v7
+          persistenceEnabled: true
+          podSecurityContext:
+            runAsUser: 1000
+            fsGroup: 1000
+          kubernetesConfig:
+            image: quay.io/opstree/redis:latest
+            imagePullPolicy: IfNotPresent
+            redisSecret:
+              name: redis-auth
+              key: password
+            resources:
+              requests:
+                cpu: 250m
+                memory: 256Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
+            service:
+              serviceType: LoadBalancer
+              annotations:
+                external-dns.alpha.kubernetes.io/hostname: {{ $sys.network.externalClusterEndpoint }}
+                service.beta.kubernetes.io/aws-load-balancer-type: external
+                service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+                service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+                service.beta.kubernetes.io/aws-load-balancer-subnets: "{{ $sys.deploymentCell.publicSubnetIDs[*].id }}"
+          redisLeader:
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                    - matchExpressions:
+                      - key: omnistrate.com/managed-by
+                        operator: In
+                        values:
+                        - omnistrate
+                      - key: topology.kubernetes.io/region
+                        operator: In
+                        values:
+                        - {{ $sys.deploymentCell.region }}
+                      - key: node.kubernetes.io/instance-type
+                        operator: In
+                        values:
+                        - {{ $sys.compute.node.instanceType }}
+                      - key: omnistrate.com/resource
+                        operator: In
+                        values:
+                        - {{ $sys.deployment.resourceID }}
+          redisFollower:
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                    - matchExpressions:
+                      - key: omnistrate.com/managed-by
+                        operator: In
+                        values:
+                        - omnistrate
+                      - key: topology.kubernetes.io/region
+                        operator: In
+                        values:
+                        - {{ $sys.deploymentCell.region }}
+                      - key: node.kubernetes.io/instance-type
+                        operator: In
+                        values:
+                        - {{ $sys.compute.node.instanceType }}
+                      - key: omnistrate.com/resource
+                        operator: In
+                        values:
+                        - {{ $sys.deployment.resourceID }}
+          redisExporter:
+            enabled: false
+            image: quay.io/opstree/redis-exporter:latest
+            imagePullPolicy: IfNotPresent
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 200m
+                memory: 256Mi
+          storage:
+            volumeClaimTemplate:
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: {{ $var.storageSize }}
+            nodeConfVolume: true
+            nodeConfVolumeClaimTemplate:
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 1Gi
+      supplementalFiles:
+        - |
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: redis-auth
+            namespace: {{ $sys.id }}
+          type: Opaque
+          data:
+            password: {{ $func.base64encode($var.redisPassword) }}
+      readinessConditions:
+        "$var._crd.status.state": "Ready"
+      outputParameters:
+        "Status": "$var._crd.status.state"
+        "Reason": "$var._crd.status.reason"
+        "Ready Leader Replicas": "$var._crd.status.readyLeaderReplicas"
+        "Ready Follower Replicas": "$var._crd.status.readyFollowerReplicas"

@@ -1,0 +1,15 @@
+customAmenities:
+  - name: redis-operator
+    description: Redis in-memory data store
+    type: Helm
+    properties:
+      ChartName: redis-operator
+      ChartVersion: 0.24.0
+      ChartRepoName: ot-helm
+      ChartRepoURL: https://ot-container-kit.github.io/helm-charts
+      ChartValues:
+        redisOperator:
+          webhook: false
+        certmanager:
+          enabled: false
+      DefaultNamespace: redis-system
