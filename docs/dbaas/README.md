@@ -133,7 +133,7 @@ services:
 To add the replica support, we need to:
 
 - Add a replica Resource to configure master and replica resources separately. Note that their configuration are different even though they both run the same base image.
-- Add numReadReplicas API parameter and configure replicaCountAPIParam compute infrastructure setting with that parameter. This change will allow us to launch number of replicas based on the numReadReplicas value provided by your customers.
+- Choose either a fixed replica count or autoscaling. If you want a fixed customer-configured count, add `numReadReplicas` and configure `replicaCountAPIParam`. If you use autoscaling, omit `replicaCountAPIParam` and let the autoscaling policy control replica count.
 
 ```yaml
 services:
@@ -150,6 +150,9 @@ services:
         required: true
         export: true
 ```
+
+!!! note
+    `replicaCountAPIParam` cannot be used together with an autoscaling policy on the same Resource. The final serverless example below uses autoscaling, so it does not include `replicaCountAPIParam`.
 
 To learn more about API parameters, please see [this page](../../build-guides/api-params.md)
 
@@ -242,19 +245,22 @@ x-customer-integrations:
 services:
   Master:
     image: 'omnistrate/pgvector:c227409'
+    x-omnistrate-mode-internal: false
     ports:
       - 5432:5432
     volumes:
-      - ./data:/var/lib/postgresql/data
-    x-omnistrate-storage:
-      aws:
-        instanceStorageType: AWS::EBS_GP3
-        instanceStorageSizeGi: 100
-        instanceStorageIOPSAPIParam: 3000
-        instanceStorageThroughputAPIParam: 125
-      gcp:
-        instanceStorageType: GCP::PD_BALANCED
-        instanceStorageSizeGi: 100
+      - source: ./data
+        target: /var/lib/postgresql/data
+        type: bind
+        x-omnistrate-storage:
+          aws:
+            instanceStorageType: AWS::EBS_GP3
+            instanceStorageSizeGi: 100
+            instanceStorageIOPS: 3000
+            instanceStorageThroughputMiBps: 125
+          gcp:
+            instanceStorageType: GCP::PD_BALANCED
+            instanceStorageSizeGi: 100
     x-omnistrate-compute:
       instanceTypes:
         - cloudProvider: aws
@@ -313,12 +319,14 @@ services:
 
   Replica:
     image: 'omnistrate/pgvector:c227409'
+    x-omnistrate-mode-internal: false
     ports:
       - 5433:5432
     volumes:
-      - ./data:/var/lib/postgresql/data
+      - source: ./data
+        target: /var/lib/postgresql/data
+        type: bind
     x-omnistrate-compute:
-      replicaCountAPIParam: numReadReplicas
       instanceTypes:
         - cloudProvider: aws
           apiParam: replicaInstanceType
@@ -326,7 +334,7 @@ services:
           apiParam: replicaInstanceType
     x-omnistrate-capabilities:
       enableMultiZone: true
-      endpointPerReplica: true
+      enableEndpointPerReplica: true
       autoscaling:
         maxReplicas: 5
         minReplicas: 1
@@ -375,20 +383,10 @@ services:
         modifiable: true
         required: true
         export: true
-      - key: numReadReplicas
-        description: Number of Read Replicas
-        name: Number of Read Replicas
-        type: Float64
-        modifiable: true
-        required: false
-        export: true
-        defaultValue: "1"
-        limits:
-          min: 1
-          max: 10
 
   ParameterGroup:
     image: omnistrate/noop
+    x-omnistrate-mode-internal: false
     x-omnistrate-api-params:
       - key: postgresqlUsername
         description: Default DB Username
