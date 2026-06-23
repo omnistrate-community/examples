@@ -87,6 +87,7 @@ x-customer-integrations:
 services:
   Master:
     image: 'docker.io/bitnami/mysql:8.1.0'
+    x-omnistrate-mode-internal: false
     ports:
       - '3306'
     volumes:
@@ -100,6 +101,13 @@ services:
         - cloudProvider: azure 
           apiParam: masterInstanceType        
     x-omnistrate-capabilities:
+      autoscaling:
+        minReplicas: 1
+        maxReplicas: 1
+        idleMinutesBeforeScalingDown: 2
+        idleThreshold: 20
+        overUtilizedMinutesBeforeScalingUp: 3
+        overUtilizedThreshold: 80
       serverlessConfiguration:
         targetPort: 3306
         enableAutoStop: true
@@ -134,12 +142,12 @@ services:
 
   Replica:
     image: 'docker.io/bitnami/mysql:8.1.0'
+    x-omnistrate-mode-internal: false
     ports:
       - '3306'
     volumes:
       - ./data:/var/lib/mysql
     x-omnistrate-compute:
-      replicaCountAPIParam: numReadReplicas
       instanceTypes:
         - cloudProvider: aws
           apiParam: replicaInstanceType
@@ -149,7 +157,7 @@ services:
           apiParam: replicaInstanceType
     x-omnistrate-capabilities:
       enableMultiZone: true
-      endpointPerReplica: true
+      enableEndpointPerReplica: true
       autoscaling:
         minReplicas: 1
         maxReplicas: 5
@@ -198,20 +206,10 @@ services:
         modifiable: true
         required: true
         export: true
-      - key: numReadReplicas
-        description: Number of Read Replicas
-        name: Number of Read Replicas
-        type: Float64
-        modifiable: true
-        required: false
-        export: true
-        defaultValue: "1"
-        limits:
-          min: 1
-          max: 10
 
   ParameterGroup:
     image: omnistrate/noop
+    x-omnistrate-mode-internal: false
     x-omnistrate-api-params:
       - key: mysqlUsername
         description: Default MySQL Username
@@ -286,7 +284,7 @@ Now a very interesting one.
 ```yaml
     x-omnistrate-capabilities:
       enableMultiZone: true
-      endpointPerReplica: true
+      enableEndpointPerReplica: true
       autoscaling:
         minReplicas: 1
         maxReplicas: 5
@@ -382,7 +380,7 @@ To create such a component we've used the `omnistrate/noop` image, which is a pa
 
 Note: you can call such components in your preferred way based on their usage, in this case, we've called it `ParameterGroup` but you can call it `MySpecialConfig` or `MyAwesomeConfig` or whatever you want.
 
-At the end of the day we've added a lot more than just serverless capabilities. We've added the ability to configure the instance types, the number of replicas, the ability to configure the MySQL environment variables via our API params, autoscaling, logging and metrics (enabled by OpenTelemetry), plus multi-zone support and endpoint for our replica(s).
+At the end of the day we've added a lot more than just serverless capabilities. We've added the ability to configure the instance types, the ability to configure the MySQL environment variables via our API params, autoscaling, logging and metrics (enabled by OpenTelemetry), plus multi-zone support and endpoint for our replica(s).
 
 We took the compose spec and added our platform capabilities to create a complete MySQL SaaS.
 
