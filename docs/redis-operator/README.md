@@ -1,6 +1,6 @@
 # Redis Operator Service Spec
 
-This example defines a Redis Cluster service that is deployed by Omnistrate through the Opstree Redis Operator. Instead of deploying Redis directly from a Helm chart, the service installs the Redis Operator chart and then creates a `RedisCluster` custom resource. The operator reconciles that custom resource into Redis leader and follower pods, services, persistent volumes, and status fields.
+This example defines a Redis Cluster service that is deployed by Omnistrate through the Opstree Redis Operator. Instead of deploying Redis directly from a Helm chart, the service installs the Redis Operator chart and then manages a `RedisCluster` custom resource through lifecycle workflows. The operator reconciles that custom resource into Redis leader and follower pods, services, persistent volumes, and status fields.
 
 ## What This Spec Creates
 
@@ -10,11 +10,11 @@ The service provisions:
 |-----------|---------|
 | Omnistrate service plan | Defines the Redis Operator offering and its tenancy, deployment account, features, and customer-facing parameters. |
 | Redis Operator Helm dependency | Installs the Opstree Redis Operator into the Omnistrate-managed Kubernetes environment. |
-| `RedisCluster` custom resource | Describes the Redis cluster that the operator should create and maintain. |
-| `redis-auth` Kubernetes secret | Stores the Redis password supplied through an Omnistrate API parameter. |
+| `RedisCluster` custom resource | Describes the Redis cluster that the operator should create and maintain (applied via `systemWorkflows.create`). |
+| `redis-auth` Kubernetes secret | Stores the Redis password supplied through an Omnistrate API parameter (applied via workflow task). |
 | AWS Network Load Balancer service | Exposes Redis publicly on port `6379`. |
 | Persistent volume claims | Stores Redis data and per-node configuration. |
-| Readiness and output parameters | Lets Omnistrate determine when the cluster is ready and show runtime status to users. |
+| Lifecycle workflows | `create`, `modify`, and `delete` workflows that manage the full lifecycle of Kubernetes resources. |
 
 ## Complete Spec
 
@@ -31,8 +31,8 @@ Names the Omnistrate service plan.
 ```yaml
 deployment:
   hostedDeployment:
-    awsAccountId: "<AWS_ACCOUNT_ID>"
-    awsBootstrapRoleAccountArn: "arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-bootstrap-role"
+    AwsAccountId: "<AWS_ACCOUNT_ID>"
+    AWSBootstrapRoleAccountArn: "arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-bootstrap-role"
 ```
 
 Deploys the service in the provider's AWS account. The bootstrap role is the IAM role Omnistrate uses to provision and manage infrastructure in that AWS account.
@@ -114,37 +114,143 @@ Defines the public Redis endpoint that customers use to connect. Omnistrate prov
 
 ## Operator CRD Configuration
 
-The `operatorCRDConfiguration` section is the core of this spec. It tells Omnistrate which custom resource to create, which supporting manifests to apply, how to detect readiness, and which Helm chart dependency must be installed first.
+The `operatorCRDConfiguration` section tells Omnistrate which Helm chart dependencies to install for the operator. Lifecycle management of the custom resource itself is handled by `systemWorkflows`.
 
-### RedisCluster Template
+### Helm Chart Dependency
+
+```yaml
+operatorCRDConfiguration:
+  helmChartDependencies:
+    - chartName: redis-operator
+      chartVersion: 0.24.0
+      chartRepoName: ot-helm
+      chartRepoURL: https://ot-container-kit.github.io/helm-charts
+      chartValues:
+        redisOperator:
+          webhook: false
+        certmanager:
+          enabled: false
+```
+
+Installs the Opstree Redis Operator Helm chart before any lifecycle workflows execute. Disables the operator webhook and cert-manager dependency to keep installation simpler when admission webhooks are not required.
+
+## System Workflows
+
+The `systemWorkflows` section defines the complete lifecycle for the Redis Cluster using an Argo Workflow-style structure. Each workflow uses DAG tasks that apply, patch, or delete Kubernetes resources.
+
+### Create Workflow
+
+When a customer creates a new Redis Cluster instance, Omnistrate executes the `create` workflow:
+
+1. **applyRedisSecret** — Creates the `redis-auth` Kubernetes Secret with the base64-encoded password.
+2. **applyRedisCluster** — Applies the `RedisCluster` custom resource (depends on the secret being created first).
+
+```yaml
+systemWorkflows:
+  create:
+    outputParameters:
+      status: "$tasks.applyRedisCluster.resource.status.state"
+      reason: "$tasks.applyRedisCluster.resource.status.reason"
+      readyLeaderReplicas: "$tasks.applyRedisCluster.resource.status.readyLeaderReplicas"
+      readyFollowerReplicas: "$tasks.applyRedisCluster.resource.status.readyFollowerReplicas"
+    workflow:
+      entrypoint: create
+      arguments:
+        parameters:
+          - name: namespace
+            value: "{{ $sys.namespace }}"
+          - name: instanceId
+            value: "{{ $sys.instanceId }}"
+          - name: clusterSize
+            value: "{{ $var.clusterSize }}"
+          - name: storageSize
+            value: "{{ $var.storageSize }}"
+          - name: redisPasswordEncoded
+            value: "{{ $func.base64encode($var.redisPassword) }}"
+          - name: externalClusterEndpoint
+            value: "{{ $sys.network.externalClusterEndpoint }}"
+          - name: publicSubnetIds
+            value: "{{ $sys.deploymentCell.publicSubnetIDs[*].id }}"
+          - name: region
+            value: "{{ $sys.deploymentCell.region }}"
+          - name: instanceType
+            value: "{{ $sys.compute.node.instanceType }}"
+          - name: resourceId
+            value: "{{ $sys.deployment.resourceID }}"
+```
+
+#### Output Parameters
+
+The `outputParameters` block extracts status fields from the applied `RedisCluster` resource and surfaces them to the customer:
+
+| Output | Source |
+|--------|--------|
+| `status` | `$tasks.applyRedisCluster.resource.status.state` |
+| `reason` | `$tasks.applyRedisCluster.resource.status.reason` |
+| `readyLeaderReplicas` | `$tasks.applyRedisCluster.resource.status.readyLeaderReplicas` |
+| `readyFollowerReplicas` | `$tasks.applyRedisCluster.resource.status.readyFollowerReplicas` |
+
+#### Readiness Detection
+
+Instead of the deprecated `readinessConditions`, readiness is now modeled through the workflow task's `successCondition`:
+
+```yaml
+resource:
+  action: apply
+  successCondition: status.state == "Ready"
+  failureCondition: status.state == "Error"
+```
+
+Omnistrate marks the instance as ready when the Redis Operator reports `status.state == "Ready"` on the `RedisCluster` resource. If the state becomes `"Error"`, the workflow fails.
+
+#### Redis Auth Secret Task
+
+```yaml
+- name: apply-redis-secret
+  resource:
+    action: apply
+    manifest: |
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: redis-auth
+        namespace: "{{inputs.parameters.namespace}}"
+      type: Opaque
+      data:
+        password: "{{inputs.parameters.redisPasswordEncoded}}"
+```
+
+Creates the `redis-auth` secret referenced by the `RedisCluster` spec. The password comes from the customer-provided `redisPassword` parameter, base64-encoded via `$func.base64encode()` in the workflow arguments.
+
+#### RedisCluster Resource Task
+
+The `apply-redis-cluster` template creates the full `RedisCluster` custom resource:
 
 ```yaml
 apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: RedisCluster
 metadata:
-  name: {{ $sys.id }}
+  name: "{{inputs.parameters.instanceId}}"
+  namespace: "{{inputs.parameters.namespace}}"
 ```
 
-Creates an Opstree `RedisCluster` custom resource. The name is the Omnistrate resource ID, which helps keep Kubernetes resources unique per service instance.
+The resource name uses `instanceId` to keep Kubernetes resources unique per service instance.
+
+**Cluster settings:**
 
 ```yaml
 spec:
-  clusterSize: {{ $var.clusterSize }}
+  clusterSize: {{inputs.parameters.clusterSize}}
   clusterVersion: v7
   persistenceEnabled: true
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
 ```
 
-Sets the requested cluster size, Redis major version, and persistent storage behavior.
+Sets the requested cluster size, Redis major version, persistent storage, and runs Redis pods as user `1000` so the Redis process can read and write persistent data without running as root.
 
-```yaml
-podSecurityContext:
-  runAsUser: 1000
-  fsGroup: 1000
-```
-
-Runs Redis pods as user `1000` and assigns mounted volumes to group `1000`, so the Redis process can read and write persistent data without running as root.
-
-### Redis Container Configuration
+**Container configuration:**
 
 ```yaml
 kubernetesConfig:
@@ -153,36 +259,31 @@ kubernetesConfig:
   redisSecret:
     name: redis-auth
     key: password
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
 ```
 
-Configures the Redis image and points the operator to the Kubernetes secret containing the Redis password.
+Configures the Redis image, points the operator to the secret, and sets Kubernetes CPU and memory requests/limits.
 
-```yaml
-resources:
-  requests:
-    cpu: 250m
-    memory: 256Mi
-  limits:
-    cpu: 500m
-    memory: 512Mi
-```
-
-Sets Kubernetes CPU and memory requests and limits for Redis pods.
-
-### Load Balancer Service
+**Load Balancer service:**
 
 ```yaml
 service:
   serviceType: LoadBalancer
   annotations:
-    external-dns.alpha.kubernetes.io/hostname: {{ $sys.network.externalClusterEndpoint }}
+    external-dns.alpha.kubernetes.io/hostname: "{{inputs.parameters.externalClusterEndpoint}}"
     service.beta.kubernetes.io/aws-load-balancer-type: external
     service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
     service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
-    service.beta.kubernetes.io/aws-load-balancer-subnets: "{{ $sys.deploymentCell.publicSubnetIDs[*].id }}"
+    service.beta.kubernetes.io/aws-load-balancer-subnets: "{{inputs.parameters.publicSubnetIds}}"
 ```
 
-Creates an internet-facing AWS Network Load Balancer. The annotations request:
+Creates an internet-facing AWS Network Load Balancer:
 
 | Annotation | Meaning |
 |------------|---------|
@@ -192,32 +293,34 @@ Creates an internet-facing AWS Network Load Balancer. The annotations request:
 | `aws-load-balancer-scheme: internet-facing` | Makes the load balancer publicly reachable. |
 | `aws-load-balancer-subnets` | Places the load balancer in the Omnistrate deployment cell public subnets. |
 
-### Pod Scheduling
-
-The `redisLeader` and `redisFollower` sections define node affinity rules.
+**Pod scheduling (leader and follower):**
 
 ```yaml
-nodeSelectorTerms:
-  - matchExpressions:
-    - key: omnistrate.com/managed-by
-      operator: In
-      values:
-      - omnistrate
-    - key: topology.kubernetes.io/region
-      operator: In
-      values:
-      - {{ $sys.deploymentCell.region }}
-    - key: node.kubernetes.io/instance-type
-      operator: In
-      values:
-      - {{ $sys.compute.node.instanceType }}
-    - key: omnistrate.com/resource
-      operator: In
-      values:
-      - {{ $sys.deployment.resourceID }}
+redisLeader:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: omnistrate.com/managed-by
+                operator: In
+                values:
+                  - omnistrate
+              - key: topology.kubernetes.io/region
+                operator: In
+                values:
+                  - "{{inputs.parameters.region}}"
+              - key: node.kubernetes.io/instance-type
+                operator: In
+                values:
+                  - "{{inputs.parameters.instanceType}}"
+              - key: omnistrate.com/resource
+                operator: In
+                values:
+                  - "{{inputs.parameters.resourceId}}"
 ```
 
-These rules force Redis leader and follower pods onto nodes that:
+Both `redisLeader` and `redisFollower` use identical affinity rules that force pods onto nodes that:
 
 | Label | Purpose |
 |-------|---------|
@@ -226,16 +329,7 @@ These rules force Redis leader and follower pods onto nodes that:
 | `node.kubernetes.io/instance-type` | Matches the selected customer instance type. |
 | `omnistrate.com/resource` | Isolates scheduling to the node group associated with this Omnistrate resource. |
 
-### Redis Exporter
-
-```yaml
-redisExporter:
-  enabled: false
-```
-
-Disables the Redis exporter sidecar. The image and resources are still declared, so the exporter can be enabled later with a small spec change if Redis-specific Prometheus metrics are needed.
-
-### Storage
+**Storage:**
 
 ```yaml
 storage:
@@ -245,83 +339,67 @@ storage:
         - ReadWriteOnce
       resources:
         requests:
-          storage: {{ $var.storageSize }}
+          storage: "{{inputs.parameters.storageSize}}"
+  nodeConfVolume: true
+  nodeConfVolumeClaimTemplate:
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
 ```
 
-Creates a persistent volume claim for Redis data using the customer-provided `storageSize`.
+Creates a persistent volume claim for Redis data using the customer-provided `storageSize`, plus an additional 1Gi volume for Redis node configuration to preserve cluster node identity across pod restarts.
+
+### Modify Workflow
+
+The `modify` workflow re-applies the `RedisCluster` resource with updated parameter values. It uses the same `apply-redis-cluster` template and `successCondition`/`failureCondition` as `create`, but skips the secret creation step (the secret is immutable).
 
 ```yaml
-nodeConfVolume: true
-nodeConfVolumeClaimTemplate:
-  spec:
-    accessModes:
-      - ReadWriteOnce
-    resources:
-      requests:
-        storage: 1Gi
+modify:
+  outputParameters:
+    status: "$tasks.applyRedisCluster.resource.status.state"
+    ...
+  workflow:
+    entrypoint: modify
+    ...
 ```
 
-Creates an additional persistent volume for Redis node configuration. This is useful for preserving cluster node identity and configuration across pod restarts.
+This runs when customers update modifiable parameters such as `instanceType` or `storageSize`.
 
-## Supplemental Kubernetes Resources
+### Delete Workflow
+
+The `delete` workflow cleans up resources in order:
+
+1. **deleteRedisCluster** — Deletes the `RedisCluster` custom resource. The operator garbage-collects pods, services, and PVCs.
+2. **deleteRedisSecret** — Deletes the `redis-auth` secret (depends on the cluster being deleted first).
 
 ```yaml
-supplementalFiles:
-  - |
-    apiVersion: v1
-    kind: Secret
-    metadata:
-      name: redis-auth
-      namespace: {{ $sys.id }}
-    type: Opaque
-    data:
-      password: {{ $func.base64encode($var.redisPassword) }}
+delete:
+  workflow:
+    entrypoint: delete
+    ...
+    templates:
+      - name: delete-redis-cluster
+        resource:
+          action: delete
+          manifest: |
+            apiVersion: redis.redis.opstreelabs.in/v1beta2
+            kind: RedisCluster
+            metadata:
+              name: "{{inputs.parameters.instanceId}}"
+              namespace: "{{inputs.parameters.namespace}}"
+      - name: delete-redis-secret
+        resource:
+          action: delete
+          manifest: |
+            apiVersion: v1
+            kind: Secret
+            metadata:
+              name: redis-auth
+              namespace: "{{inputs.parameters.namespace}}"
 ```
-
-Creates the `redis-auth` secret referenced by the `RedisCluster` template. The password comes from the customer-provided `redisPassword` parameter and is base64 encoded for the Kubernetes Secret `data` field.
-
-## Readiness Conditions
-
-```yaml
-readinessConditions:
-  "$var._crd.status.state": "Ready"
-```
-
-Marks the Omnistrate service instance as ready only when the Redis Operator reports the custom resource status state as `Ready`.
-
-## Output Parameters
-
-```yaml
-outputParameters:
-  "Status": "$var._crd.status.state"
-  "Reason": "$var._crd.status.reason"
-  "Ready Leader Replicas": "$var._crd.status.readyLeaderReplicas"
-  "Ready Follower Replicas": "$var._crd.status.readyFollowerReplicas"
-```
-
-Surfaces operator status fields in Omnistrate so users can see the Redis cluster state, failure reason, and ready leader/follower replica counts.
-
-## Helm Chart Dependency
-
-```yaml
-helmChartDependencies:
-  - chartName: redis-operator
-    chartVersion: 0.24.0
-    chartRepoName: ot-helm
-    chartRepoURL: https://ot-container-kit.github.io/helm-charts
-```
-
-Installs the Opstree Redis Operator Helm chart before applying the `RedisCluster` custom resource.
-
-```yaml
-chartValues:
-  redisOperator:
-    webhook: false
-  certmanager:
-    enabled: false
-```
-
-Disables the operator webhook and cert-manager dependency. This keeps installation simpler when admission webhooks are not required for this deployment.
 
 ## Runtime Variable Reference
 
@@ -333,27 +411,31 @@ The spec uses Omnistrate variables to connect customer inputs, generated infrast
 | `$var.redisPassword` | Customer-provided Redis password. |
 | `$var.clusterSize` | Customer-selected Redis cluster size. |
 | `$var.storageSize` | Customer-selected Redis data volume size. |
-| `$var._crd.status.*` | Status fields returned by the Redis Operator custom resource. |
-| `$sys.id` | Unique Omnistrate resource or namespace identifier. |
+| `$sys.namespace` | Kubernetes namespace for the instance. |
+| `$sys.instanceId` | Unique Omnistrate instance identifier. |
 | `$sys.network.externalClusterEndpoint` | Public DNS hostname assigned by Omnistrate. |
 | `$sys.deploymentCell.region` | AWS region of the current deployment cell. |
 | `$sys.deploymentCell.publicSubnetIDs[*].id` | Public subnet IDs used by the AWS load balancer. |
 | `$sys.compute.node.instanceType` | Effective compute instance type chosen for the resource. |
 | `$sys.deployment.resourceID` | Omnistrate resource ID used for node placement isolation. |
 | `$func.base64encode(...)` | Omnistrate function used to encode the Redis password for a Kubernetes Secret. |
+| `$tasks.<taskName>.resource.status.*` | Workflow output parameter expression that reads the applied resource's status fields. |
 
 ## Deployment Flow
 
 1. A customer creates a Redis Cluster instance and provides required parameters such as `redisPassword`.
 2. Omnistrate provisions compute based on `instanceType` and the service tenancy configuration.
-3. Omnistrate installs the `redis-operator` Helm chart dependency.
-4. Omnistrate applies the supplemental `redis-auth` secret.
-5. Omnistrate renders and applies the `RedisCluster` custom resource.
-6. The Redis Operator creates Redis leader and follower pods, services, and persistent volumes.
-7. The Kubernetes `LoadBalancer` service creates an internet-facing AWS NLB.
-8. ExternalDNS maps `$sys.network.externalClusterEndpoint` to the load balancer.
-9. Omnistrate waits until `$var._crd.status.state` equals `Ready`.
-10. Omnistrate exposes the endpoint and output parameters to the user.
+3. Omnistrate installs the `redis-operator` Helm chart dependency from `operatorCRDConfiguration.helmChartDependencies`.
+4. Omnistrate executes the `systemWorkflows.create` workflow:
+   - The `applyRedisSecret` task creates the `redis-auth` Kubernetes Secret.
+   - The `applyRedisCluster` task applies the `RedisCluster` custom resource.
+5. The Redis Operator reconciles the custom resource into Redis leader and follower pods, services, and persistent volumes.
+6. The Kubernetes `LoadBalancer` service creates an internet-facing AWS NLB.
+7. ExternalDNS maps `$sys.network.externalClusterEndpoint` to the load balancer.
+8. Omnistrate waits until the workflow `successCondition` (`status.state == "Ready"`) is met.
+9. Omnistrate exposes the endpoint and output parameters to the user.
+
+On deletion, Omnistrate executes `systemWorkflows.delete`, which removes the `RedisCluster` CR first (letting the operator garbage-collect pods and PVCs) and then deletes the auth secret.
 
 ## Operational Notes
 
@@ -363,3 +445,4 @@ The spec uses Omnistrate variables to connect customer inputs, generated infrast
 - The Redis image uses `latest`. For production, pin this to a tested Redis image tag to make upgrades explicit and repeatable.
 - The load balancer is public and internet-facing. Restrict access with network policy, security groups, private networking, or application-level controls if the service should not be globally reachable.
 - The Redis exporter is disabled. Enable it if you need Redis-specific Prometheus metrics in addition to Omnistrate's platform metrics.
+- The deprecated `template`, `supplementalFiles`, `readinessConditions`, and top-level `outputParameters` fields are intentionally omitted; lifecycle resources and readiness checks are modeled with `systemWorkflows` following the [operator spec template](https://github.com/omnistrate-community/operator-spec-template).
