@@ -2,8 +2,8 @@
 name: Redis Operator
 deployment:
   hostedDeployment:
-    awsAccountId: "<AWS_ACCOUNT_ID>"
-    awsBootstrapRoleAccountArn: "arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-bootstrap-role"
+    AwsAccountId: "<AWS_ACCOUNT_ID>"
+    AWSBootstrapRoleAccountArn: "arn:aws:iam::<AWS_ACCOUNT_ID>:role/omnistrate-bootstrap-role"
 tenancyType: CUSTOM_TENANCY
 features:
   INTERNAL:
@@ -63,125 +63,468 @@ services:
           - 6379
         primary: true
         networkingType: PUBLIC
-    operatorCRDConfiguration:
-      template: |
-        apiVersion: redis.redis.opstreelabs.in/v1beta2
-        kind: RedisCluster
-        metadata:
-          name: {{ $sys.id }}
-        spec:
-          clusterSize: {{ $var.clusterSize }}
-          clusterVersion: v7
-          persistenceEnabled: true
-          podSecurityContext:
-            runAsUser: 1000
-            fsGroup: 1000
-          kubernetesConfig:
-            image: quay.io/opstree/redis:latest
-            imagePullPolicy: IfNotPresent
-            redisSecret:
-              name: redis-auth
-              key: password
-            resources:
-              requests:
-                cpu: 250m
-                memory: 256Mi
-              limits:
-                cpu: 500m
-                memory: 512Mi
-            service:
-              serviceType: LoadBalancer
-              annotations:
-                external-dns.alpha.kubernetes.io/hostname: {{ $sys.network.externalClusterEndpoint }}
-                service.beta.kubernetes.io/aws-load-balancer-type: external
-                service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
-                service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
-                service.beta.kubernetes.io/aws-load-balancer-subnets: "{{ $sys.deploymentCell.publicSubnetIDs[*].id }}"
-          redisLeader:
-            affinity:
-              nodeAffinity:
-                requiredDuringSchedulingIgnoredDuringExecution:
-                  nodeSelectorTerms:
-                    - matchExpressions:
-                      - key: omnistrate.com/managed-by
-                        operator: In
-                        values:
-                        - omnistrate
-                      - key: topology.kubernetes.io/region
-                        operator: In
-                        values:
-                        - {{ $sys.deploymentCell.region }}
-                      - key: node.kubernetes.io/instance-type
-                        operator: In
-                        values:
-                        - {{ $sys.compute.node.instanceType }}
-                      - key: omnistrate.com/resource
-                        operator: In
-                        values:
-                        - {{ $sys.deployment.resourceID }}
-          redisFollower:
-            affinity:
-              nodeAffinity:
-                requiredDuringSchedulingIgnoredDuringExecution:
-                  nodeSelectorTerms:
-                    - matchExpressions:
-                      - key: omnistrate.com/managed-by
-                        operator: In
-                        values:
-                        - omnistrate
-                      - key: topology.kubernetes.io/region
-                        operator: In
-                        values:
-                        - {{ $sys.deploymentCell.region }}
-                      - key: node.kubernetes.io/instance-type
-                        operator: In
-                        values:
-                        - {{ $sys.compute.node.instanceType }}
-                      - key: omnistrate.com/resource
-                        operator: In
-                        values:
-                        - {{ $sys.deployment.resourceID }}
-          redisExporter:
-            enabled: false
-            image: quay.io/opstree/redis-exporter:latest
-            imagePullPolicy: IfNotPresent
-            resources:
-              requests:
-                cpu: 100m
-                memory: 128Mi
-              limits:
-                cpu: 200m
-                memory: 256Mi
-          storage:
-            volumeClaimTemplate:
-              spec:
-                accessModes:
-                  - ReadWriteOnce
-                resources:
-                  requests:
-                    storage: {{ $var.storageSize }}
-            nodeConfVolume: true
-            nodeConfVolumeClaimTemplate:
-              spec:
-                accessModes:
-                  - ReadWriteOnce
-                resources:
-                  requests:
-                    storage: 1Gi
-      supplementalFiles:
-        - |
-          apiVersion: v1
-          kind: Secret
-          metadata:
-            name: redis-auth
-            namespace: {{ $sys.id }}
-          type: Opaque
-          data:
-            password: {{ $func.base64encode($var.redisPassword) }}
-      readinessConditions:
-        "$var._crd.status.state": "Ready"
-      outputParameters:
-        "Status": "$var._crd.status.state"
-        "Reason": "$var._crd.status.reason"
-        "Ready Leader Replicas": "$var._crd.status.readyLeaderReplicas"
-        "Ready Follower Replicas": "$var._crd.status.readyFollowerReplicas"
+    # No operatorCRDConfiguration.helmChartDependencies — the Redis Operator
+    # is installed as a deployment-cell custom amenity (see deployment-cell-config.yaml).
+
+    systemWorkflows:
+      create:
+        outputParameters:
+          status: "$tasks.applyRedisCluster.resource.status.state"
+          reason: "$tasks.applyRedisCluster.resource.status.reason"
+          readyLeaderReplicas: "$tasks.applyRedisCluster.resource.status.readyLeaderReplicas"
+          readyFollowerReplicas: "$tasks.applyRedisCluster.resource.status.readyFollowerReplicas"
+        workflow:
+          entrypoint: create
+          arguments:
+            parameters:
+              - name: namespace
+                value: "{{ $sys.namespace }}"
+              - name: instanceId
+                value: "{{ $sys.instanceId }}"
+              - name: clusterSize
+                value: "{{ $var.clusterSize }}"
+              - name: storageSize
+                value: "{{ $var.storageSize }}"
+              - name: redisPasswordEncoded
+                value: "{{ $func.base64encode($var.redisPassword) }}"
+              - name: externalClusterEndpoint
+                value: "{{ $sys.network.externalClusterEndpoint }}"
+              - name: publicSubnetIds
+                value: "{{ $sys.deploymentCell.publicSubnetIDs[*].id }}"
+              - name: region
+                value: "{{ $sys.deploymentCell.region }}"
+              - name: instanceType
+                value: "{{ $sys.compute.node.instanceType }}"
+              - name: resourceId
+                value: "{{ $sys.deployment.resourceID }}"
+          templates:
+            - name: create
+              inputs:
+                parameters:
+                  - name: namespace
+                  - name: instanceId
+                  - name: clusterSize
+                  - name: storageSize
+                  - name: redisPasswordEncoded
+                  - name: externalClusterEndpoint
+                  - name: publicSubnetIds
+                  - name: region
+                  - name: instanceType
+                  - name: resourceId
+              dag:
+                tasks:
+                  - name: applyRedisSecret
+                    template: apply-redis-secret
+                    arguments:
+                      parameters:
+                        - name: namespace
+                          value: "{{inputs.parameters.namespace}}"
+                        - name: redisPasswordEncoded
+                          value: "{{inputs.parameters.redisPasswordEncoded}}"
+                  - name: applyRedisCluster
+                    template: apply-redis-cluster
+                    dependencies:
+                      - applyRedisSecret
+                    arguments:
+                      parameters:
+                        - name: namespace
+                          value: "{{inputs.parameters.namespace}}"
+                        - name: instanceId
+                          value: "{{inputs.parameters.instanceId}}"
+                        - name: clusterSize
+                          value: "{{inputs.parameters.clusterSize}}"
+                        - name: storageSize
+                          value: "{{inputs.parameters.storageSize}}"
+                        - name: externalClusterEndpoint
+                          value: "{{inputs.parameters.externalClusterEndpoint}}"
+                        - name: publicSubnetIds
+                          value: "{{inputs.parameters.publicSubnetIds}}"
+                        - name: region
+                          value: "{{inputs.parameters.region}}"
+                        - name: instanceType
+                          value: "{{inputs.parameters.instanceType}}"
+                        - name: resourceId
+                          value: "{{inputs.parameters.resourceId}}"
+            - name: apply-redis-secret
+              inputs:
+                parameters:
+                  - name: namespace
+                  - name: redisPasswordEncoded
+              resource:
+                action: apply
+                manifest: |
+                  apiVersion: v1
+                  kind: Secret
+                  metadata:
+                    name: redis-auth
+                    namespace: "{{inputs.parameters.namespace}}"
+                  type: Opaque
+                  data:
+                    password: "{{inputs.parameters.redisPasswordEncoded}}"
+            - name: apply-redis-cluster
+              inputs:
+                parameters:
+                  - name: namespace
+                  - name: instanceId
+                  - name: clusterSize
+                  - name: storageSize
+                  - name: externalClusterEndpoint
+                  - name: publicSubnetIds
+                  - name: region
+                  - name: instanceType
+                  - name: resourceId
+              resource:
+                action: apply
+                successCondition: status.state == "Ready"
+                failureCondition: status.state == "Error"
+                manifest: |
+                  apiVersion: redis.redis.opstreelabs.in/v1beta2
+                  kind: RedisCluster
+                  metadata:
+                    name: "{{inputs.parameters.instanceId}}"
+                    namespace: "{{inputs.parameters.namespace}}"
+                  spec:
+                    clusterSize: {{inputs.parameters.clusterSize}}
+                    clusterVersion: v7
+                    persistenceEnabled: true
+                    podSecurityContext:
+                      runAsUser: 1000
+                      fsGroup: 1000
+                    kubernetesConfig:
+                      image: quay.io/opstree/redis:latest
+                      imagePullPolicy: IfNotPresent
+                      redisSecret:
+                        name: redis-auth
+                        key: password
+                      resources:
+                        requests:
+                          cpu: 250m
+                          memory: 256Mi
+                        limits:
+                          cpu: 500m
+                          memory: 512Mi
+                      service:
+                        serviceType: LoadBalancer
+                        annotations:
+                          external-dns.alpha.kubernetes.io/hostname: "{{inputs.parameters.externalClusterEndpoint}}"
+                          service.beta.kubernetes.io/aws-load-balancer-type: external
+                          service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+                          service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+                          service.beta.kubernetes.io/aws-load-balancer-subnets: "{{inputs.parameters.publicSubnetIds}}"
+                    redisLeader:
+                      affinity:
+                        nodeAffinity:
+                          requiredDuringSchedulingIgnoredDuringExecution:
+                            nodeSelectorTerms:
+                              - matchExpressions:
+                                  - key: omnistrate.com/managed-by
+                                    operator: In
+                                    values:
+                                      - omnistrate
+                                  - key: topology.kubernetes.io/region
+                                    operator: In
+                                    values:
+                                      - "{{inputs.parameters.region}}"
+                                  - key: node.kubernetes.io/instance-type
+                                    operator: In
+                                    values:
+                                      - "{{inputs.parameters.instanceType}}"
+                                  - key: omnistrate.com/resource
+                                    operator: In
+                                    values:
+                                      - "{{inputs.parameters.resourceId}}"
+                    redisFollower:
+                      affinity:
+                        nodeAffinity:
+                          requiredDuringSchedulingIgnoredDuringExecution:
+                            nodeSelectorTerms:
+                              - matchExpressions:
+                                  - key: omnistrate.com/managed-by
+                                    operator: In
+                                    values:
+                                      - omnistrate
+                                  - key: topology.kubernetes.io/region
+                                    operator: In
+                                    values:
+                                      - "{{inputs.parameters.region}}"
+                                  - key: node.kubernetes.io/instance-type
+                                    operator: In
+                                    values:
+                                      - "{{inputs.parameters.instanceType}}"
+                                  - key: omnistrate.com/resource
+                                    operator: In
+                                    values:
+                                      - "{{inputs.parameters.resourceId}}"
+                    redisExporter:
+                      enabled: false
+                      image: quay.io/opstree/redis-exporter:latest
+                      imagePullPolicy: IfNotPresent
+                      resources:
+                        requests:
+                          cpu: 100m
+                          memory: 128Mi
+                        limits:
+                          cpu: 200m
+                          memory: 256Mi
+                    storage:
+                      volumeClaimTemplate:
+                        spec:
+                          accessModes:
+                            - ReadWriteOnce
+                          resources:
+                            requests:
+                              storage: "{{inputs.parameters.storageSize}}"
+                      nodeConfVolume: true
+                      nodeConfVolumeClaimTemplate:
+                        spec:
+                          accessModes:
+                            - ReadWriteOnce
+                          resources:
+                            requests:
+                              storage: 1Gi
+
+      modify:
+        outputParameters:
+          status: "$tasks.applyRedisCluster.resource.status.state"
+          reason: "$tasks.applyRedisCluster.resource.status.reason"
+          readyLeaderReplicas: "$tasks.applyRedisCluster.resource.status.readyLeaderReplicas"
+          readyFollowerReplicas: "$tasks.applyRedisCluster.resource.status.readyFollowerReplicas"
+        workflow:
+          entrypoint: modify
+          arguments:
+            parameters:
+              - name: namespace
+                value: "{{ $sys.namespace }}"
+              - name: instanceId
+                value: "{{ $sys.instanceId }}"
+              - name: clusterSize
+                value: "{{ $var.clusterSize }}"
+              - name: storageSize
+                value: "{{ $var.storageSize }}"
+              - name: externalClusterEndpoint
+                value: "{{ $sys.network.externalClusterEndpoint }}"
+              - name: publicSubnetIds
+                value: "{{ $sys.deploymentCell.publicSubnetIDs[*].id }}"
+              - name: region
+                value: "{{ $sys.deploymentCell.region }}"
+              - name: instanceType
+                value: "{{ $sys.compute.node.instanceType }}"
+              - name: resourceId
+                value: "{{ $sys.deployment.resourceID }}"
+          templates:
+            - name: modify
+              inputs:
+                parameters:
+                  - name: namespace
+                  - name: instanceId
+                  - name: clusterSize
+                  - name: storageSize
+                  - name: externalClusterEndpoint
+                  - name: publicSubnetIds
+                  - name: region
+                  - name: instanceType
+                  - name: resourceId
+              dag:
+                tasks:
+                  - name: applyRedisCluster
+                    template: apply-redis-cluster
+                    arguments:
+                      parameters:
+                        - name: namespace
+                          value: "{{inputs.parameters.namespace}}"
+                        - name: instanceId
+                          value: "{{inputs.parameters.instanceId}}"
+                        - name: clusterSize
+                          value: "{{inputs.parameters.clusterSize}}"
+                        - name: storageSize
+                          value: "{{inputs.parameters.storageSize}}"
+                        - name: externalClusterEndpoint
+                          value: "{{inputs.parameters.externalClusterEndpoint}}"
+                        - name: publicSubnetIds
+                          value: "{{inputs.parameters.publicSubnetIds}}"
+                        - name: region
+                          value: "{{inputs.parameters.region}}"
+                        - name: instanceType
+                          value: "{{inputs.parameters.instanceType}}"
+                        - name: resourceId
+                          value: "{{inputs.parameters.resourceId}}"
+            - name: apply-redis-cluster
+              inputs:
+                parameters:
+                  - name: namespace
+                  - name: instanceId
+                  - name: clusterSize
+                  - name: storageSize
+                  - name: externalClusterEndpoint
+                  - name: publicSubnetIds
+                  - name: region
+                  - name: instanceType
+                  - name: resourceId
+              resource:
+                action: apply
+                successCondition: status.state == "Ready"
+                failureCondition: status.state == "Error"
+                manifest: |
+                  apiVersion: redis.redis.opstreelabs.in/v1beta2
+                  kind: RedisCluster
+                  metadata:
+                    name: "{{inputs.parameters.instanceId}}"
+                    namespace: "{{inputs.parameters.namespace}}"
+                  spec:
+                    clusterSize: {{inputs.parameters.clusterSize}}
+                    clusterVersion: v7
+                    persistenceEnabled: true
+                    podSecurityContext:
+                      runAsUser: 1000
+                      fsGroup: 1000
+                    kubernetesConfig:
+                      image: quay.io/opstree/redis:latest
+                      imagePullPolicy: IfNotPresent
+                      redisSecret:
+                        name: redis-auth
+                        key: password
+                      resources:
+                        requests:
+                          cpu: 250m
+                          memory: 256Mi
+                        limits:
+                          cpu: 500m
+                          memory: 512Mi
+                      service:
+                        serviceType: LoadBalancer
+                        annotations:
+                          external-dns.alpha.kubernetes.io/hostname: "{{inputs.parameters.externalClusterEndpoint}}"
+                          service.beta.kubernetes.io/aws-load-balancer-type: external
+                          service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+                          service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+                          service.beta.kubernetes.io/aws-load-balancer-subnets: "{{inputs.parameters.publicSubnetIds}}"
+                    redisLeader:
+                      affinity:
+                        nodeAffinity:
+                          requiredDuringSchedulingIgnoredDuringExecution:
+                            nodeSelectorTerms:
+                              - matchExpressions:
+                                  - key: omnistrate.com/managed-by
+                                    operator: In
+                                    values:
+                                      - omnistrate
+                                  - key: topology.kubernetes.io/region
+                                    operator: In
+                                    values:
+                                      - "{{inputs.parameters.region}}"
+                                  - key: node.kubernetes.io/instance-type
+                                    operator: In
+                                    values:
+                                      - "{{inputs.parameters.instanceType}}"
+                                  - key: omnistrate.com/resource
+                                    operator: In
+                                    values:
+                                      - "{{inputs.parameters.resourceId}}"
+                    redisFollower:
+                      affinity:
+                        nodeAffinity:
+                          requiredDuringSchedulingIgnoredDuringExecution:
+                            nodeSelectorTerms:
+                              - matchExpressions:
+                                  - key: omnistrate.com/managed-by
+                                    operator: In
+                                    values:
+                                      - omnistrate
+                                  - key: topology.kubernetes.io/region
+                                    operator: In
+                                    values:
+                                      - "{{inputs.parameters.region}}"
+                                  - key: node.kubernetes.io/instance-type
+                                    operator: In
+                                    values:
+                                      - "{{inputs.parameters.instanceType}}"
+                                  - key: omnistrate.com/resource
+                                    operator: In
+                                    values:
+                                      - "{{inputs.parameters.resourceId}}"
+                    redisExporter:
+                      enabled: false
+                      image: quay.io/opstree/redis-exporter:latest
+                      imagePullPolicy: IfNotPresent
+                      resources:
+                        requests:
+                          cpu: 100m
+                          memory: 128Mi
+                        limits:
+                          cpu: 200m
+                          memory: 256Mi
+                    storage:
+                      volumeClaimTemplate:
+                        spec:
+                          accessModes:
+                            - ReadWriteOnce
+                          resources:
+                            requests:
+                              storage: "{{inputs.parameters.storageSize}}"
+                      nodeConfVolume: true
+                      nodeConfVolumeClaimTemplate:
+                        spec:
+                          accessModes:
+                            - ReadWriteOnce
+                          resources:
+                            requests:
+                              storage: 1Gi
+
+      delete:
+        workflow:
+          entrypoint: delete
+          arguments:
+            parameters:
+              - name: namespace
+                value: "{{ $sys.namespace }}"
+              - name: instanceId
+                value: "{{ $sys.instanceId }}"
+          templates:
+            - name: delete
+              inputs:
+                parameters:
+                  - name: namespace
+                  - name: instanceId
+              dag:
+                tasks:
+                  - name: deleteRedisCluster
+                    template: delete-redis-cluster
+                    arguments:
+                      parameters:
+                        - name: namespace
+                          value: "{{inputs.parameters.namespace}}"
+                        - name: instanceId
+                          value: "{{inputs.parameters.instanceId}}"
+                  - name: deleteRedisSecret
+                    template: delete-redis-secret
+                    dependencies:
+                      - deleteRedisCluster
+                    arguments:
+                      parameters:
+                        - name: namespace
+                          value: "{{inputs.parameters.namespace}}"
+            - name: delete-redis-cluster
+              inputs:
+                parameters:
+                  - name: namespace
+                  - name: instanceId
+              resource:
+                action: delete
+                manifest: |
+                  apiVersion: redis.redis.opstreelabs.in/v1beta2
+                  kind: RedisCluster
+                  metadata:
+                    name: "{{inputs.parameters.instanceId}}"
+                    namespace: "{{inputs.parameters.namespace}}"
+            - name: delete-redis-secret
+              inputs:
+                parameters:
+                  - name: namespace
+              resource:
+                action: delete
+                manifest: |
+                  apiVersion: v1
+                  kind: Secret
+                  metadata:
+                    name: redis-auth
+                    namespace: "{{inputs.parameters.namespace}}"
